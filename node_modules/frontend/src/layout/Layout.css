@@ -1,0 +1,27 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+.logo {
+  height: 48px;
+  width: auto;
+}
+
+.main {
+  flex: 1;
+  padding: 1.5rem;
+}

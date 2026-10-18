@@ -1,0 +1,25 @@
+.home-container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.home-title {
+  text-align: right;
+}
+
+.home-subtitle {
+  text-align: right;
+}
+
+.error {
+  color: red;
+}
+
+.json-output {
+  background: #f6f8fa;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  text-align: left;
+  direction: ltr;
+}
