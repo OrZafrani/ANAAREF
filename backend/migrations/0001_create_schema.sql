@@ -1,4 +1,4 @@
--- Cobra schema, enum types, realities and shared helpers.
+-- Enum types, realities and shared helpers. All objects live in the public schema.
 --
 -- Every timestamp column is a plain `timestamp` (without time zone) holding UTC.
 -- Defaults use `now() AT TIME ZONE 'utc'` so they do not depend on the server time zone.
@@ -6,16 +6,14 @@
 
 -- Up Migration
 
-CREATE SCHEMA IF NOT EXISTS cobra;
+CREATE TYPE simulation_difficulty AS ENUM ('easy', 'medium', 'hard');
 
-CREATE TYPE cobra.simulation_difficulty AS ENUM ('easy', 'medium', 'hard');
+CREATE TYPE simulation_target_system AS ENUM ('specter', 'combat');
 
-CREATE TYPE cobra.simulation_target_system AS ENUM ('specter', 'combat');
-
-CREATE TYPE cobra.simulation_run_status AS ENUM ('started', 'completed', 'stopped', 'failed');
+CREATE TYPE simulation_run_status AS ENUM ('started', 'completed', 'stopped', 'failed');
 
 -- BEFORE UPDATE trigger: sets the column named by the first trigger argument to the current UTC time.
-CREATE FUNCTION cobra.set_updated_at() RETURNS trigger
+CREATE FUNCTION set_updated_at() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     NEW := jsonb_populate_record(NEW, jsonb_build_object(TG_ARGV[0], now() AT TIME ZONE 'utc'));
@@ -24,7 +22,7 @@ END;
 $$;
 
 -- 0 = the real world, 1 = the default simulated reality. Both are seeded here.
-CREATE TABLE cobra.realities (
+CREATE TABLE realities (
     id   integer PRIMARY KEY,
     name text    NOT NULL,
 
@@ -32,19 +30,16 @@ CREATE TABLE cobra.realities (
     CONSTRAINT realities_id_check CHECK (id >= 0)
 );
 
-INSERT INTO cobra.realities (id, name) VALUES
+INSERT INTO realities (id, name) VALUES
     (0, 'real'),
     (1, 'simulation');
 
 -- Down Migration
 
-DROP TABLE cobra.realities;
+DROP TABLE realities;
 
-DROP FUNCTION cobra.set_updated_at();
+DROP FUNCTION set_updated_at();
 
-DROP TYPE cobra.simulation_run_status;
-DROP TYPE cobra.simulation_target_system;
-DROP TYPE cobra.simulation_difficulty;
-
--- No CASCADE: fails if anything outside these migrations was created in the schema.
-DROP SCHEMA cobra;
+DROP TYPE simulation_run_status;
+DROP TYPE simulation_target_system;
+DROP TYPE simulation_difficulty;

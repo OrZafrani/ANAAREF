@@ -2,7 +2,7 @@
 
 -- Up Migration
 
-CREATE TABLE cobra.reports (
+CREATE TABLE reports (
     -- xxhash64 of reality + platform + canonical report_url, computed by the writer.
     report_id               bigint    PRIMARY KEY,
     -- 0 = real, non-zero = simulated.
@@ -37,9 +37,9 @@ CREATE TABLE cobra.reports (
     fastbreak_model_version text,
 
     CONSTRAINT reports_reality_id_fkey
-        FOREIGN KEY (reality_id) REFERENCES cobra.realities (id) ON DELETE RESTRICT,
+        FOREIGN KEY (reality_id) REFERENCES realities (id) ON DELETE RESTRICT,
     CONSTRAINT reports_template_id_fkey
-        FOREIGN KEY (template_id) REFERENCES cobra.report_templates (id) ON DELETE SET NULL,
+        FOREIGN KEY (template_id) REFERENCES report_templates (id) ON DELETE SET NULL,
     -- report_id hashes the reality, so the same URL in two realities is two rows.
     CONSTRAINT reports_reality_id_platform_report_url_key UNIQUE (reality_id, platform, report_url),
 
@@ -55,8 +55,8 @@ CREATE TABLE cobra.reports (
 );
 
 -- Serves ON DELETE SET NULL from report_templates and "reports from this template" lookups.
-CREATE INDEX reports_template_id_idx ON cobra.reports (template_id);
+CREATE INDEX reports_template_id_idx ON reports (template_id);
 
 -- Down Migration
 
-DROP TABLE cobra.reports;
+DROP TABLE reports;

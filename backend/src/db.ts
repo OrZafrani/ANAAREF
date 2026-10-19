@@ -15,6 +15,4 @@ export const db = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: Number(process.env.DB_POOL_MAX) || 10,
   connectionTimeoutMillis: Number(process.env.DB_TIMEOUT_MS) || 5000,
-  // Lets queries use `reports` instead of `cobra.reports`.
-  options: '-c search_path=cobra',
 });
