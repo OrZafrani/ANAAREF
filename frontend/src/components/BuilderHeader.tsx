@@ -25,103 +25,110 @@ export default function BuilderHeader({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <div className="builder-header-container">
-      {/* Pre-bar containing "+ סימולציה חדשה" dark button matching mockup */}
-      <div className="builder-pre-bar">
-        <button
-          type="button"
-          className="btn-dark-new-sim"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <PlusIcon size={16} />
-          <span>סימולציה חדשה</span>
-        </button>
-      </div>
+    <>
+      {/* White Builder Top Bar Section */}
+      <div className="builder-top-bar-wrapper">
+        <div className="builder-top-bar-inner">
+          {/* Pre-bar containing "+ סימולציה חדשה" dark button matching mockup */}
+          <div className="builder-pre-bar">
+            <button
+              type="button"
+              className="btn-dark-new-sim"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <PlusIcon size={16} />
+              <span>סימולציה חדשה</span>
+            </button>
+          </div>
 
-      {/* Action Row */}
-      <div className="builder-top-bar">
-        {/* Right side (RTL start) */}
-        <div className="top-bar-right">
-          <button
-            type="button"
-            className="btn-back-dashboard"
-            onClick={() => navigate('/')}
-            title="חזרה ללוח הבקרה"
-          >
-            <span>לוח הבקרה</span>
-            <ArrowRightIcon size={16} />
-          </button>
+          {/* Action Row */}
+          <div className="builder-top-bar">
+            {/* Right side (RTL start) */}
+            <div className="top-bar-right">
+              <button
+                type="button"
+                className="btn-back-dashboard"
+                onClick={() => navigate('/')}
+                title="חזרה ללוח הבקרה"
+              >
+                <span>לוח הבקרה</span>
+                <ArrowRightIcon size={16} />
+              </button>
 
-          <div className="title-section">
-            <span className="sub-title-breadcrumb">בונה ידני · סימולציה חדשה</span>
-            <h1 className="main-title">{title.trim() ? title : 'סימולציה ללא שם'}</h1>
+              <div className="title-section">
+                <span className="sub-title-breadcrumb">בונה ידני · סימולציה חדשה</span>
+                <h1 className="main-title">{title.trim() ? title : 'סימולציה ללא שם'}</h1>
+              </div>
+            </div>
+
+            {/* Left side (RTL actions) */}
+            <div className="top-bar-left">
+              <span className="badge-spectre">SPECTRE</span>
+
+              <span className="save-status">
+                <CheckIcon size={14} />
+                <span>{isSaved ? 'אין שינויים' : 'נשמר כטיוטה'}</span>
+              </span>
+
+              <button
+                type="button"
+                className="top-text-btn"
+                onClick={() => navigate('/')}
+              >
+                סגירה
+              </button>
+
+              <button
+                type="button"
+                className="top-outline-btn"
+                onClick={onSaveDraft}
+              >
+                שמירה כטיוטה
+              </button>
+
+              <button
+                type="button"
+                className="top-gold-btn"
+                onClick={onSave}
+              >
+                שמירה
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Left side (RTL actions) */}
-        <div className="top-bar-left">
-          <span className="badge-spectre">SPECTRE</span>
-
-          <span className="save-status">
-            <CheckIcon size={14} />
-            <span>{isSaved ? 'אין שינויים' : 'נשמר כטיוטה'}</span>
-          </span>
-
-          <button
-            type="button"
-            className="top-text-btn"
-            onClick={() => navigate('/')}
-          >
-            סגירה
-          </button>
-
-          <button
-            type="button"
-            className="top-outline-btn"
-            onClick={onSaveDraft}
-          >
-            שמירה כטיוטה
-          </button>
-
-          <button
-            type="button"
-            className="top-gold-btn"
-            onClick={onSave}
-          >
-            שמירה
-          </button>
-        </div>
       </div>
 
-      {/* Stepper Area (aligned to the right side underneath the title) */}
-      <div className="builder-stepper-area">
-        <div className="stepper-pill-group">
-          <button
-            type="button"
-            className={`stepper-pill ${currentStep === 1 ? 'active' : currentStep > 1 ? 'completed' : ''}`}
-            onClick={() => onStepClick && onStepClick(1)}
-          >
-            <span className="step-circle">1</span>
-            <span className="step-label">פרטים והגדרות</span>
-          </button>
+      {/* Stepper Area (sitting on the gray background, aligned right) */}
+      <div className="builder-stepper-container">
+        <div className="builder-stepper-area">
+          <div className="stepper-pill-group">
+            <button
+              type="button"
+              className={`stepper-pill ${currentStep === 1 ? 'active' : currentStep > 1 ? 'completed' : ''}`}
+              onClick={() => onStepClick && onStepClick(1)}
+            >
+              <span className="step-circle">1</span>
+              <span className="step-label">פרטים והגדרות</span>
+            </button>
 
-          <button
-            type="button"
-            className={`stepper-pill ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : ''}`}
-            onClick={() => onStepClick && onStepClick(2)}
-          >
-            <span className="step-circle">2</span>
-            <span className="step-label">תוכן</span>
-          </button>
+            <button
+              type="button"
+              className={`stepper-pill ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : ''}`}
+              onClick={() => onStepClick && onStepClick(2)}
+            >
+              <span className="step-circle">2</span>
+              <span className="step-label">תוכן</span>
+            </button>
 
-          <button
-            type="button"
-            className={`stepper-pill ${currentStep === 3 ? 'active' : ''}`}
-            onClick={() => onStepClick && onStepClick(3)}
-          >
-            <span className="step-circle">3</span>
-            <span className="step-label">סקירה ושמירה</span>
-          </button>
+            <button
+              type="button"
+              className={`stepper-pill ${currentStep === 3 ? 'active' : ''}`}
+              onClick={() => onStepClick && onStepClick(3)}
+            >
+              <span className="step-circle">3</span>
+              <span className="step-label">סקירה ושמירה</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -130,6 +137,6 @@ export default function BuilderHeader({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
-    </div>
+    </>
   );
 }

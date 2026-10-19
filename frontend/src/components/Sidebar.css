@@ -56,8 +56,7 @@
     width: 60px;
     min-width: 60px;
     padding: 1rem 0.25rem;
-    align-items: center;
-  }
+    align-items: center;  }
   .sidebar-item-text {
     display: none;
   }
