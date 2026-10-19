@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom';
 import { MoonIcon } from './Icons';
 import './GlobalNavbar.css';
 
-export default function GlobalNavbar() {
+interface GlobalNavbarProps {
+  theme: 'light' | 'dark';
+  onThemeToggle: () => void;
+}
+
+export default function GlobalNavbar({ theme, onThemeToggle }: GlobalNavbarProps) {
   return (
     <header className="global-navbar">
       {/* Right side: Cobra Brand Logo & Title */}
@@ -29,8 +34,13 @@ export default function GlobalNavbar() {
           <span className="pill-dot dot-purple" />
         </button>
 
-        <button type="button" className="btn-darkmode-toggle">
-          <span>מצב כהה</span>
+        <button
+          type="button"
+          className="btn-darkmode-toggle"
+          aria-label="החלפת ערכת נושא"
+          onClick={onThemeToggle}
+        >
+          <span>{theme === 'light' ? 'מצב כהה' : 'מצב בהיר'}</span>
           <MoonIcon size={14} />
         </button>
 

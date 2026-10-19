@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import NewSimulationModal from '../components/NewSimulationModal';
 import { Simulation } from '../types/simulation';
 import { PlusIcon, LayersIcon, TrashIcon } from '../components/Icons';
