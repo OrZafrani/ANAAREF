@@ -1,6 +1,5 @@
-import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
@@ -9,6 +8,7 @@ import SelectEvents from './pages/SelectEvents';
 
 describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
     localStorage.clear();
     sessionStorage.clear();
   });
@@ -123,7 +123,50 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('נא להזין שם לסימולציה')).toBeInTheDocument();
   });
 
-  it('renders events selection step 2 and tracks amount of selected events', () => {
+  it('uses library categories and reports in events selection step 2', async () => {
+    const categories = [{
+      id: 'category-1',
+      name: 'תפעול',
+      report_count: 2,
+      sub_categories: [{ id: 'subcategory-1', category_id: 'category-1', name: 'התראות', report_count: 1 }],
+    }];
+    const reports = [
+      {
+        id: 'report-1',
+        category_id: 'category-1',
+        sub_category_id: 'subcategory-1',
+        category_name: 'תפעול',
+        sub_category_name: 'התראות',
+        report_title: 'דיווח מספריית התוכן',
+        original_content: 'תוכן הדיווח שנשמר בספרייה',
+        translated_content: null,
+        report_url: 'https://example.com/report-1',
+        city: 'באר שבע',
+        country: 'IL',
+        happened_at: null,
+        collected_at: '2025-01-01T12:00:00.000Z',
+      },
+      {
+        id: 'report-2',
+        category_id: 'category-1',
+        sub_category_id: null,
+        category_name: 'תפעול',
+        sub_category_name: null,
+        report_title: 'דיווח כללי',
+        original_content: 'תוכן נוסף',
+        translated_content: null,
+        report_url: 'https://example.com/report-2',
+        city: null,
+        country: null,
+        happened_at: null,
+        collected_at: '2025-01-02T12:00:00.000Z',
+      },
+    ];
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const payload = String(input).includes('/api/categories/tree') ? categories : reports;
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    }));
+
     const testState = {
       title: 'מטח פתיחה — עוטף עזה',
       description: 'תרגול תרחיש תגובה מהירה',
@@ -151,12 +194,22 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     expect(screen.getByText('ספריית התוכן')).toBeInTheDocument();
 
-    const addButtons = screen.getAllByRole('button', { name: /הוסף לסימולציה/i });
-    expect(addButtons.length).toBeGreaterThan(0);
-    fireEvent.click(addButtons[0]);
+    await waitFor(() => expect(screen.getByText('דיווח מספריית התוכן')).toBeInTheDocument());
+    expect(screen.getAllByText('תפעול').length).toBeGreaterThan(0);
+    expect(screen.getByText('התראות')).toBeInTheDocument();
+    expect(screen.getByText('דיווח כללי')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /התראות/ }));
+    expect(screen.queryByText('דיווח כללי')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('spinbutton', { name: /דקה בסימולציה: דיווח מספריית התוכן/ }), {
+      target: { value: '7' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ }));
 
     // Check count and selection state
-    expect(screen.getAllByText('נבחר לסימולציה').length).toBeGreaterThan(0);
+    expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
+    expect(screen.getByText('דקה 7')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
   });
