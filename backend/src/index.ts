@@ -4,10 +4,17 @@ import express from 'express';
 import morgan from 'morgan';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { config } from './config.js';
+import { db } from './db.js';
+import { reportPublisher } from './kafka.js';
 import { apiErrorHandler } from './lib/validate.js';
 import { categoryRoutes, subCategoryRoutes } from './routes/categoryRoutes.js';
 import { libraryRoutes } from './routes/libraryRoutes.js';
+import { createRunRoutes } from './routes/runRoutes.js';
 import { templateRoutes } from './routes/templateRoutes.js';
+import { createScheduler } from './scheduler/index.js';
+import { systemClock } from './scheduler/clock.js';
+import { runRepository } from './scheduler/runRepository.js';
 import { isLibraryEmpty, runSeedLibrary } from './seed/categorySeedLoader.js';
 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
@@ -25,11 +32,27 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/sub-categories', subCategoryRoutes);
 app.use('/api/library', libraryRoutes);
 app.use('/api/templates', templateRoutes);
+
+const scheduler = createScheduler({
+  store: runRepository,
+  publisher: reportPublisher,
+  clock: systemClock,
+  ...config.scheduler,
+});
+app.use('/api/simulations/:simulationId/runs', createRunRoutes(scheduler));
+
 app.use(apiErrorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+
+  // Resume simulation runs that were dispatching when the backend last stopped.
+  try {
+    await scheduler.recoverRuns();
+  } catch (err) {
+    console.error('[boot] Run recovery failed (non-fatal):', err);
+  }
 
   // Auto-seed: populate the template library if it is empty
   try {
@@ -43,3 +66,22 @@ app.listen(PORT, async () => {
     console.error('[boot] Auto-seed failed (non-fatal):', err);
   }
 });
+
+// Started runs stay started, so the next boot resumes them.
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[shutdown] ${signal} received, stopping`);
+  server.close();
+  try {
+    await scheduler.shutdown();
+    await reportPublisher.disconnect();
+    await db.end();
+  } catch (err) {
+    console.error('[shutdown] Error while stopping:', err);
+  }
+  process.exit(0);
+}
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
