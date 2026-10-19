@@ -409,6 +409,98 @@
   max-height: 420px;
 }
 
+@media (max-width: 700px) {
+  .events-builder-body {
+    padding: 0 0.9rem 2rem;
+    gap: 1rem;
+  }
+
+  .events-metric-banner {
+    align-items: stretch;
+    padding: 1rem;
+  }
+
+  .metric-stat-group {
+    justify-content: stretch;
+    gap: 0.5rem;
+  }
+
+  .metric-stat-pill {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 0.5rem;
+  }
+
+  .content-step-card {
+    padding: 1rem;
+  }
+
+  .content-card-top {
+    align-items: stretch;
+  }
+
+  .content-card-actions {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .catalog-scroll-list,
+  .content-selected-list {
+    max-height: min(55vh, 420px);
+  }
+
+  .library-modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .library-modal-card {
+    max-height: 94dvh;
+  }
+}
+
+@media (max-width: 480px) {
+  .events-builder-body {
+    padding-inline: 0.7rem;
+  }
+
+  .metric-stat-group {
+    flex-wrap: wrap;
+  }
+
+  .content-card-title-group {
+    flex-wrap: wrap;
+  }
+
+  .content-card-actions {
+    align-items: stretch;
+  }
+
+  .btn-add-from-library {
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .box-top-line {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .box-tags {
+    flex-wrap: wrap;
+  }
+
+  .builder-bottom-bar {
+    gap: 0.5rem;
+  }
+
+  .builder-bottom-bar button {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 0.55rem;
+  }
+}
+
 /* Content Library Modal */
 .library-modal-overlay {
   position: fixed;

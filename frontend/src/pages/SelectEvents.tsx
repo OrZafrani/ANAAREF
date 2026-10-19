@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
-import {
-  SimulationFormData,
-  SimulationEvent,
-  Simulation,
-} from '../types/simulation';
+import { SimulationFormData, SimulationEvent } from '../types/simulation';
 import { PRESET_EVENTS } from '../data/presetEvents';
+import { createSimulation } from '../lib/api';
 import {
   CheckIcon,
   ArrowRightIcon,
@@ -57,6 +54,8 @@ export default function SelectEvents() {
 
   // Success modal
   const [isSavedSuccess, setIsSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const selectedIds = new Set(selectedEvents.map((e) => e.id));
   const simDuration = DIFFICULTY_DURATION_MAP[simData.difficulty] ?? 30;
@@ -78,32 +77,23 @@ export default function SelectEvents() {
     setSelectedEvents([...selectedEvents, newEvent]);
   };
 
-  const handleSaveSimulation = () => {
+  const handleSaveSimulation = async () => {
     if (selectedEvents.length === 0) {
       alert('נא לבחור לפחות אירוע אחד לסימולציה');
       return;
     }
 
-    const newSimulation: Simulation = {
-      id: `sim-${Date.now()}`,
-      title: simData.title,
-      description: simData.description,
-      difficulty: simData.difficulty,
-      events: selectedEvents,
-      createdAt: new Date().toISOString(),
-    };
-
+    setIsSaving(true);
+    setSaveError('');
     try {
-      const existing = localStorage.getItem('cobra_simulations');
-      const list: Simulation[] = existing ? JSON.parse(existing) : [];
-      list.unshift(newSimulation);
-      localStorage.setItem('cobra_simulations', JSON.stringify(list));
+      await createSimulation({ ...simData, events: selectedEvents });
       sessionStorage.removeItem('cobra_sim_draft');
-    } catch {
-      // ignore
+      setIsSavedSuccess(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save simulation.');
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSavedSuccess(true);
   };
 
   return (
@@ -135,6 +125,7 @@ export default function SelectEvents() {
       />
 
       <main className="events-builder-body">
+        {saveError && <p role="alert">{saveError}</p>}
         {currentStep === 2 ? (
           <>
             {/* Single content card matching mockup */}
@@ -302,10 +293,11 @@ export default function SelectEvents() {
               <button
                 type="button"
                 className="btn-bottom-next"
+                disabled={isSaving}
                 onClick={handleSaveSimulation}
               >
                 <CheckIcon size={16} />
-                <span>שמירה ואישור</span>
+                <span>{isSaving ? 'שומר...' : 'שמירה ואישור'}</span>
               </button>
             </div>
           </>

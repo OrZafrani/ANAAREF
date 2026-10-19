@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
@@ -11,6 +11,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
   });
 
   it('renders global navbar and sidebar matching upper mockup', () => {
@@ -43,12 +44,42 @@ describe('Simulation Flow - Mockup Alignment', () => {
       </MemoryRouter>
     );
 
-    // Verify default view is untouched
-    expect(screen.getByText('or the king')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ניהול סימולציות' })).toBeInTheDocument();
 
     // Verify button exists
     const newSimBtn = screen.getByRole('button', { name: /סימולציה חדשה/i });
     expect(newSimBtn).toBeInTheDocument();
+  });
+
+  it('loads saved simulations and deletes through the API', async () => {
+    const savedSimulation = {
+      id: 'saved-simulation-id',
+      title: 'תרגיל מהשרת',
+      description: 'סימולציה שנשמרה במסד',
+      difficulty: 'בינוני' as const,
+      events: [],
+      createdAt: '2026-10-19T10:00:00.000Z',
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [savedSimulation] })
+      .mockResolvedValueOnce({ ok: true, status: 204 });
+    global.fetch = fetchMock;
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('תרגיל מהשרת')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /מחק סימולציה/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/simulations/saved-simulation-id',
+      { method: 'DELETE' },
+    ));
+    expect(screen.queryByText('תרגיל מהשרת')).not.toBeInTheDocument();
   });
 
   it('opens modal with Manual and AI options when clicking new simulation button', () => {
@@ -159,5 +190,42 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getAllByText('נבחר לסימולציה').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
+  });
+
+  it('saves a simulation and selected events through the API', async () => {
+    const createdAt = '2026-10-19T10:00:00.000Z';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'database-simulation-id', createdAt }),
+    });
+    const testState = {
+      title: 'תרגיל שמור',
+      description: 'תיאור תרגיל',
+      difficulty: 'בינוני' as const,
+    };
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/simulations/events', state: testState }] }>
+        <Routes>
+          <Route path="/simulations/events" element={<SelectEvents />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /הוסף לסימולציה/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
+    fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
+
+    expect(await screen.findByText('הסימולציה נשמרה בהצלחה')).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith('/api/simulations', expect.objectContaining({
+      method: 'POST',
+    }));
+    const requestBody = JSON.parse(
+      vi.mocked(global.fetch).mock.calls[0][1]?.body as string,
+    );
+    expect(requestBody.events).toHaveLength(1);
+    expect(requestBody.events[0].title).toBe('זיהוי תנועה חשודה בגדר המערכת');
+    expect(localStorage.getItem('cobra_simulations')).toBeNull();
   });
 });

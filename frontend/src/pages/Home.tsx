@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import NewSimulationModal from '../components/NewSimulationModal';
+import { deleteSimulation, listSimulations } from '../lib/api';
 import { Simulation } from '../types/simulation';
 import { PlusIcon, LayersIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
@@ -7,32 +8,45 @@ import './Home.css';
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [simulations, setSimulations] = useState<Simulation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('cobra_simulations');
-      if (stored) {
-        setSimulations(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
+    let isMounted = true;
+    listSimulations()
+      .then((results) => {
+        if (isMounted) setSimulations(results);
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) setError(loadError instanceof Error ? loadError.message : 'טעינת הסימולציות נכשלה');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const handleDeleteSimulation = (id: string) => {
-    const updated = simulations.filter((s) => s.id !== id);
-    setSimulations(updated);
+  const handleDeleteSimulation = async (id: string) => {
+    setIsDeleting(id);
+    setError('');
     try {
-      localStorage.setItem('cobra_simulations', JSON.stringify(updated));
-    } catch {
-      // ignore
+      await deleteSimulation(id);
+      setSimulations((current) => current.filter((simulation) => simulation.id !== id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'מחיקת הסימולציה נכשלה');
+    } finally {
+      setIsDeleting(null);
     }
   };
 
   return (
     <div className="home-container">
       {/* Retain default view element */}
-      <h1 className="home-title">or the king </h1>
+      <h1 className="home-title">ניהול סימולציות</h1>
 
       <section>
         {/* Action card with the "Key" / Button to create simulation */}
@@ -51,6 +65,9 @@ export default function Home() {
             <span>סימולציה חדשה</span>
           </button>
         </div>
+
+        {error && <p role="alert">{error}</p>}
+        {isLoading && <p role="status">טוען סימולציות...</p>}
 
         {/* Existing simulations list if any */}
         {simulations.length > 0 && (
@@ -84,8 +101,10 @@ export default function Home() {
                     <button
                       type="button"
                       className="delete-sim-btn"
+                      disabled={isDeleting === sim.id}
                       onClick={() => handleDeleteSimulation(sim.id)}
                       title="מחק סימולציה"
+                      aria-label="מחק סימולציה"
                     >
                       <TrashIcon size={16} />
                     </button>

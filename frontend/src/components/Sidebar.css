@@ -57,8 +57,35 @@
     width: 60px;
     min-width: 60px;
     padding: 1rem 0.25rem;
-    align-items: center;  }
+    align-items: center;
+  }
   .sidebar-item-text {
     display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .app-sidebar {
+    order: 0;
+    width: 100%;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    overflow-x: auto;
+    border-inline-end: 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .sidebar-nav-item {
+    width: auto;
+    min-width: max-content;
+    min-height: 42px;
+    padding-inline: 0.75rem;
+  }
+
+  .sidebar-item-text {
+    display: inline;
   }
 }

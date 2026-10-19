@@ -1,7 +1,7 @@
 .home-container {
-  max-width: 800px;
+  width: min(100%, 1120px);
   margin: 0 auto;
-  padding: 1rem 0 3rem 0;
+  padding: 1.5rem clamp(1rem, 3vw, 2rem) 3rem;
   direction: rtl;
   text-align: start;
 }
@@ -105,8 +105,8 @@
 }
 
 .sim-cards-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 1rem;
 }
 
@@ -184,4 +184,36 @@
 
 .delete-sim-btn:hover {
   color: #e11d48;
+}
+
+@media (max-width: 600px) {
+  .home-container {
+    padding: 1rem 0.9rem 2rem;
+  }
+
+  .home-title {
+    font-size: 1.6rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .sim-action-section {
+    align-items: stretch;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-new-simulation {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .saved-sim-card {
+    padding: 1rem;
+  }
+
+  .saved-sim-top {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
