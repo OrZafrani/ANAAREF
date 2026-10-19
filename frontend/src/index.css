@@ -6,12 +6,27 @@
   text-rendering: optimizeLegibility;
 }
 
-* { box-sizing: border-box; }
+html {
+  direction: rtl;
+}
 
 body {
   margin: 0;
   direction: rtl;
-  text-align: right;
+  text-align: start;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+input, textarea, select {
+  direction: rtl;
+  text-align: start;
+}
+
+input::placeholder, textarea::placeholder {
+  text-align: start;
 }
 
 button, input, select, textarea { font-family: inherit; }

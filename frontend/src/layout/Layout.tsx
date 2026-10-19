@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import GlobalNavbar from '../components/GlobalNavbar';
+import Sidebar from '../components/Sidebar';
 import './Layout.css';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -11,34 +13,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   return (
-    <div className="layout" data-theme={theme}>
-      <header className="header" dir="rtl">
-        <div className="brand-lockup">
-          <img src="/cobra_logo.png" alt="" className="logo" />
-          <div className="brand-copy">
-            <strong>COBRA</strong>
-            <span>בנייה, ניהול והרצת סימולציות</span>
-          </div>
-        </div>
-        <div className="header-controls">
-          <span className="system-name">מערכת יעד</span>
-          <div className="module-switch" aria-label="מערכת פעילה">
-            <span className="module-tab is-active"><i />SPECTRE</span>
-            <span className="module-tab"><i />ניהול לחימה</span>
-          </div>
-          <button
-            className="theme-toggle"
-            type="button"
-            aria-label="החלפת ערכת נושא"
-            onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}
-          >
-            <span aria-hidden="true">{theme === 'light' ? '☾' : '☼'}</span>
-            {theme === 'light' ? 'מצב כהה' : 'מצב בהיר'}
-          </button>
-          <span className="user-badge" aria-label="משתמש מחובר">ממ</span>
-        </div>
-      </header>
-      <main className="main">{children}</main>
+    <div className="layout layout-app" data-theme={theme}>
+      <GlobalNavbar
+        theme={theme}
+        onThemeToggle={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}
+      />
+      <div className="layout-body-container">
+        <Sidebar />
+        <main className="layout-main-content">{children}</main>
+      </div>
     </div>
   );
 }

@@ -1,73 +1,50 @@
 .layout {
-  --header: #ffffff;
-  --header-ink: #22262b;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  color: var(--header-ink);
   background: #f3f4f6;
 }
 
 .layout[data-theme='dark'] {
-  --header: #111519;
-  --header-ink: #e8ebef;
   background: #101419;
 }
 
-.header {
+.layout-app {
+  direction: rtl;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.layout-body-container {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 71px;
-  padding: 8px 28px;
-  border-bottom: 2px solid #e5b51c;
-  background: var(--header);
-}
-
-.brand-lockup, .header-controls, .module-switch, .module-tab, .theme-toggle {
-  display: flex;
-  align-items: center;
-}
-
-.brand-lockup { gap: 10px; }
-.brand-copy { display: flex; flex-direction: column; gap: 0; }
-.brand-copy strong { font-size: 16px; letter-spacing: 2px; line-height: 1.15; }
-.brand-copy span { color: #87909a; font-size: 11px; }
-.header-controls { gap: 13px; }
-.system-name { padding: 0 3px; color: #69727c; font-size: 13px; }
-.module-switch { gap: 4px; padding: 3px; border: 1px solid #e0e3e7; border-radius: 9px; background: #f4f5f6; }
-.module-tab { gap: 7px; min-height: 36px; padding: 0 13px; border: 1px solid transparent; border-radius: 7px; color: #58616b; font-size: 13px; }
-.module-tab i { width: 8px; height: 8px; border-radius: 2px; background: #b7474a; }
-.module-tab.is-active { color: #20252a; border-color: #d8dce1; background: #fff; box-shadow: 0 1px 2px rgba(20,25,30,.06); font-weight: 700; }
-.module-tab.is-active i { background: #e3b51e; }
-.theme-toggle { gap: 8px; min-height: 37px; padding: 0 12px; border: 1px solid #d9dde2; border-radius: 7px; color: var(--header-ink); background: var(--header); font: inherit; font-size: 13px; cursor: pointer; }
-.theme-toggle:hover { border-color: #c3a132; }
-.theme-toggle span { font-size: 17px; }
-.user-badge { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 50%; color: #fff; background: #252b34; font-size: 13px; font-weight: 700; }
-
-.layout[data-theme='dark'] .module-switch { border-color: #30363e; background: #181d23; }
-.layout[data-theme='dark'] .module-tab { color: #a9b1bb; }
-.layout[data-theme='dark'] .module-tab.is-active { color: #edf0f3; border-color: #414953; background: #252b33; }
-.layout[data-theme='dark'] .theme-toggle { border-color: #363d46; }
-.layout[data-theme='dark'] .user-badge { color: #282e36; background: #e8ebef; }
-
-.logo {
-  width: 43px;
-  height: 43px;
-  object-fit: contain;
-}
-
-.main {
   flex: 1;
+  flex-direction: row;
+  direction: rtl;
   min-height: 0;
-  padding: 0;
+  background: #f8f9fa;
 }
+
+.layout-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout[data-theme='dark'] .layout-body-container { background: #101419; }
+.layout[data-theme='dark'] .global-navbar,
+.layout[data-theme='dark'] .app-sidebar { border-color: #292f36; background: #11161b; }
+.layout[data-theme='dark'] .brand-title-main,
+.layout[data-theme='dark'] .navbar-pill-btn,
+.layout[data-theme='dark'] .btn-darkmode-toggle,
+.layout[data-theme='dark'] .sidebar-nav-item { color: #e8ebef; }
+.layout[data-theme='dark'] .brand-tagline-sub,
+.layout[data-theme='dark'] .target-sys-label,
+.layout[data-theme='dark'] .sidebar-item-icon { color: #a0a9b3; }
+.layout[data-theme='dark'] .navbar-pill-btn,
+.layout[data-theme='dark'] .btn-darkmode-toggle { border-color: #363d46; background: #171c22; }
+.layout[data-theme='dark'] .sidebar-nav-item:hover,
+.layout[data-theme='dark'] .sidebar-nav-item.active { color: #f0c63e; background: #1a2027; }
 
 @media (max-width: 780px) {
-  .header { align-items: flex-start; flex-direction: column; gap: 9px; padding: 10px 14px; }
-  .header-controls { flex-wrap: wrap; gap: 7px; width: 100%; }
-  .system-name { display: none; }
-  .module-tab { min-height: 31px; padding: 0 8px; font-size: 12px; }
-  .theme-toggle { min-height: 32px; padding: 0 8px; font-size: 12px; }
-  .user-badge { width: 32px; height: 32px; margin-right: auto; }
+  .layout-body-container { flex-direction: column; }
 }
