@@ -168,6 +168,7 @@ async function readCsvRows(): Promise<CsvRow[]> {
           skip_empty_lines: true,
           trim: false,          // we handle trimming ourselves per field
           relax_column_count: true,
+          quote: null,          // seed content contains literal `"` chars inside Hebrew fields
         }),
       )
       .on('data', (row: CsvRow) => rows.push(row))
@@ -272,7 +273,7 @@ const isCli =
     process.argv[1].endsWith('categorySeedLoader.js'));
 
 if (isCli) {
-  dotenv.config();
+  dotenv.config({ path: join(__dirname, '..', '.env') });
   console.log('[seed] Running Category Seed Loader (CLI)...');
   runSeedLibrary()
     .then(({ rowCount }) => {

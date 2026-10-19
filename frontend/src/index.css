@@ -1,9 +1,17 @@
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Assistant', 'Arial', sans-serif;
+  color: #182522;
+  background: #f5f7f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
+
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
   direction: rtl;
   text-align: right;
 }
+
+button, input, select, textarea { font-family: inherit; }

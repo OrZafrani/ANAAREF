@@ -9,10 +9,13 @@
     "build": "tsc",
     "migrate": "node-pg-migrate up -m migrations",
     "migrate:down": "node-pg-migrate down -m migrations",
-    "migrate:create": "node-pg-migrate create -m migrations -j sql --migration-filename-format index"
+    "migrate:create": "node-pg-migrate create -m migrations -j sql --migration-filename-format index",
+    "seed:library": "tsx src/seed/categorySeedLoader.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "csv-parse": "^7.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "morgan": "^1.10.0",
@@ -26,6 +29,7 @@
     "@types/node": "^22.10.2",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.5"
   }
 }
