@@ -2,7 +2,7 @@
 
 -- Up Migration
 
-CREATE TABLE cobra.template_categories (
+CREATE TABLE template_categories (
     id   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name text NOT NULL,
 
@@ -10,22 +10,22 @@ CREATE TABLE cobra.template_categories (
 );
 
 -- Deleting a category deletes its sub-categories (blocked while templates use them, see below).
-CREATE TABLE cobra.template_sub_categories (
+CREATE TABLE template_sub_categories (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     category_id uuid NOT NULL,
     name        text NOT NULL,
 
     CONSTRAINT template_sub_categories_category_id_fkey
-        FOREIGN KEY (category_id) REFERENCES cobra.template_categories (id) ON DELETE CASCADE,
+        FOREIGN KEY (category_id) REFERENCES template_categories (id) ON DELETE CASCADE,
     -- Names are unique within their parent category.
     CONSTRAINT template_sub_categories_category_id_name_key UNIQUE (category_id, name),
     -- Target of the composite foreign key from report_templates.
     CONSTRAINT template_sub_categories_category_id_id_key UNIQUE (category_id, id)
 );
 
--- Every cobra.reports column except report_id and reality_id, with the same types and nullability,
+-- Every reports column except report_id and reality_id, with the same types and nullability,
 -- so a template can be copied into reports as is.
-CREATE TABLE cobra.report_templates (
+CREATE TABLE report_templates (
     id                      uuid      PRIMARY KEY DEFAULT gen_random_uuid(),
     category_id             uuid      NOT NULL,
     sub_category_id         uuid,
@@ -58,12 +58,12 @@ CREATE TABLE cobra.report_templates (
     fastbreak_model_version text,
 
     CONSTRAINT report_templates_category_id_fkey
-        FOREIGN KEY (category_id) REFERENCES cobra.template_categories (id) ON DELETE RESTRICT,
+        FOREIGN KEY (category_id) REFERENCES template_categories (id) ON DELETE RESTRICT,
     -- Guarantees the sub-category belongs to the template's category.
     -- MATCH SIMPLE (the default) skips the check when sub_category_id is NULL.
     CONSTRAINT report_templates_sub_category_fkey
         FOREIGN KEY (category_id, sub_category_id)
-        REFERENCES cobra.template_sub_categories (category_id, id) ON DELETE RESTRICT,
+        REFERENCES template_sub_categories (category_id, id) ON DELETE RESTRICT,
 
     CONSTRAINT report_templates_threat_level_check CHECK (threat_level BETWEEN 0 AND 100),
     CONSTRAINT report_templates_original_language_check CHECK (original_language ~ '^[a-z]{2}$'),
@@ -78,14 +78,14 @@ CREATE TABLE cobra.report_templates (
 
 -- Serves both foreign keys and "templates in category / sub-category" listings.
 CREATE INDEX report_templates_category_id_sub_category_id_idx
-    ON cobra.report_templates (category_id, sub_category_id);
+    ON report_templates (category_id, sub_category_id);
 
 CREATE TRIGGER report_templates_set_updated_at
-    BEFORE UPDATE ON cobra.report_templates
-    FOR EACH ROW EXECUTE FUNCTION cobra.set_updated_at('template_updated_at');
+    BEFORE UPDATE ON report_templates
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at('template_updated_at');
 
 -- Down Migration
 
-DROP TABLE cobra.report_templates;
-DROP TABLE cobra.template_sub_categories;
-DROP TABLE cobra.template_categories;
+DROP TABLE report_templates;
+DROP TABLE template_sub_categories;
+DROP TABLE template_categories;
