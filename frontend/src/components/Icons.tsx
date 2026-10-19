@@ -43,7 +43,7 @@ export function ArrowLeftIcon({ className = '', size = 18 }: IconProps) {
 
 export function CheckIcon({ className = '', size = 18 }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
@@ -103,12 +103,12 @@ export function ClockIcon({ className = '', size = 18 }: IconProps) {
   );
 }
 
-export function ShieldAlertIcon({ className = '', size = 18 }: IconProps) {
+export function SignalBarsIcon({ level = 2, size = 16 }: { level?: 1 | 2 | 3; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <rect x="4" y="14" width="3.5" height="7" rx="1" opacity={level >= 1 ? 1 : 0.28} />
+      <rect x="10.25" y="9" width="3.5" height="12" rx="1" opacity={level >= 2 ? 1 : 0.28} />
+      <rect x="16.5" y="4" width="3.5" height="17" rx="1" opacity={level >= 3 ? 1 : 0.28} />
     </svg>
   );
 }

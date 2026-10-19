@@ -4,12 +4,22 @@
   flex-direction: column;
 }
 
+.layout-builder {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  color: #111827;
+  direction: rtl;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid #eee;
+  background: #ffffff;
 }
 
 .header-spacer {

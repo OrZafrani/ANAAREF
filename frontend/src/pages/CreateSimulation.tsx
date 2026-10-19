@@ -1,32 +1,41 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BuilderHeader from '../components/BuilderHeader';
+import { SignalBarsIcon, ArrowLeftIcon, ArrowRightIcon } from '../components/Icons';
 import { DifficultyLevel, SimulationFormData } from '../types/simulation';
-import { ArrowLeftIcon } from '../components/Icons';
 import './CreateSimulation.css';
 
-const DIFFICULTY_OPTIONS: { level: DifficultyLevel; description: string }[] = [
+interface DifficultyOption {
+  level: DifficultyLevel;
+  bars: 1 | 2 | 3;
+  description: string;
+  metrics: string;
+}
+
+const DIFFICULTY_CONFIG: DifficultyOption[] = [
   {
     level: 'קל',
-    description: 'תרחיש בסיסי המבוסס על נהלים קבועים וזמני תגובה גמישים.',
+    bars: 1,
+    description: 'קצב מתון ומעט הסחות. מתאים למפעילים חדשים.',
+    metrics: "2/דק'  ·  20 דק'  ·  5/5/10%",
   },
   {
     level: 'בינוני',
-    description: 'אירוע משולב עם לחץ זמנים מתון ודרישה לקבלת החלטות מהירה.',
+    bars: 2,
+    description: 'קצב שגרתי-מוגבר עם הסחות בהיקף בינוני.',
+    metrics: "4/דק'  ·  30 דק'  ·  15/10/25%",
   },
   {
     level: 'קשה',
-    description: 'אירוע מורכב, רב-מוקדי ובתנאי אי-ודאות מבצעית גבוהה.',
-  },
-  {
-    level: 'מומחה',
-    description: 'תרחיש קיצון משולב במקביל עם עומס תקלות ואירועי חירום.',
+    bars: 3,
+    description: 'עומס גבוה, הסחות רבות ולחץ זמן.',
+    metrics: "8/דק'  ·  45 דק'  ·  25/20/40%",
   },
 ];
 
 export default function CreateSimulation() {
   const navigate = useNavigate();
 
-  // Retrieve any draft state if available
   const [formData, setFormData] = useState<SimulationFormData>(() => {
     try {
       const draft = sessionStorage.getItem('cobra_sim_draft');
@@ -43,163 +52,176 @@ export default function CreateSimulation() {
     };
   });
 
-  const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string }>({});
+  const [isSavedDraft, setIsSavedDraft] = useState(true);
 
-  const validate = () => {
-    const newErrors: { title?: string; description?: string } = {};
-    if (!formData.title.trim()) {
-      newErrors.title = 'נא להזין כותרת לסימולציה';
-    } else if (formData.title.trim().length < 3) {
-      newErrors.title = 'הכותרת קצרה מדי (לפחות 3 תווים)';
+  const handleSaveDraft = () => {
+    try {
+      sessionStorage.setItem('cobra_sim_draft', JSON.stringify(formData));
+      setIsSavedDraft(true);
+    } catch {
+      // ignore
     }
-
-    if (!formData.description.trim()) {
-      newErrors.description = 'נא להזין תיאור מפורט לסימולציה';
-    } else if (formData.description.trim().length < 8) {
-      newErrors.description = 'התיאור קצר מדי (לפחות 8 תווים)';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) {
+  const handleNext = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!formData.title.trim()) {
+      setErrors({ title: 'נא להזין שם לסימולציה' });
       return;
     }
 
-    // Save to session storage
+    // Save draft
     sessionStorage.setItem('cobra_sim_draft', JSON.stringify(formData));
 
-    // Move to event selection page
+    // Navigate to step 2 (content / events)
     navigate('/simulations/events', { state: formData });
   };
 
   return (
-    <div className="create-sim-container">
-      <div className="create-sim-header">
-        <nav className="sim-breadcrumb">
-          <button type="button" onClick={() => navigate('/')}>
-            דף הבית
-          </button>
-          <span>/</span>
-          <span>יצירת סימולציה</span>
-        </nav>
-        <h1 className="create-sim-title">יצירת סימולציה חדשה</h1>
-        <p className="create-sim-subtitle">
-          הגדר את פרטי הבסיס של התרחיש המבצעי לפני בחירת האירועים
-        </p>
-      </div>
+    <div className="builder-page-wrapper">
+      {/* Top Header matching user mockup */}
+      <BuilderHeader
+        title={formData.title}
+        currentStep={1}
+        onStepClick={(step) => {
+          if (step === 2 && formData.title.trim()) {
+            handleNext();
+          }
+        }}
+        onSaveDraft={handleSaveDraft}
+        onSave={handleNext}
+        isSaved={isSavedDraft}
+      />
 
-      {/* Stepper */}
-      <div className="stepper-bar">
-        <div className="stepper-item stepper-item-active">
-          <span className="stepper-num">1</span>
-          <span>פרטי הסימולציה</span>
-        </div>
-        <div className="stepper-divider" />
-        <div className="stepper-item">
-          <span className="stepper-num">2</span>
-          <span>בחירת אירועים</span>
-        </div>
-      </div>
+      <main className="builder-page-body">
+        {/* Card 1: פרטי הסימולציה */}
+        <section className="builder-card">
+          <div className="builder-card-header">
+            <h2 className="builder-card-title">פרטי הסימולציה</h2>
+            <p className="builder-card-subtitle">
+              הסימולציה תיבנה עבור SPECTRE, לפי המערכת שנבחרה בסרגל העליון.
+            </p>
+          </div>
 
-      <form className="create-sim-form" onSubmit={handleSubmit} noValidate>
-        {/* Title Field */}
-        <div className="form-group">
-          <label htmlFor="sim-title" className="form-label">
-            <span>כותרת הסימולציה</span>
-            <span className="required-mark">*</span>
-          </label>
-          <p className="form-hint">שם קצר ומדויק המזהה את אופי התרחיש המבצעי</p>
-          <input
-            id="sim-title"
-            type="text"
-            className={`form-input ${errors.title ? 'input-error' : ''}`}
-            placeholder="לדוגמה: תרגיל תגובה לאירוע חדירה בגזרה הצפונית"
-            value={formData.title}
-            onChange={(e) => {
-              setFormData({ ...formData, title: e.target.value });
-              if (errors.title) setErrors({ ...errors, title: undefined });
-            }}
-          />
-          {errors.title && <p className="error-text">{errors.title}</p>}
-        </div>
+          <div className="builder-card-divider" />
 
-        {/* Description Field */}
-        <div className="form-group">
-          <label htmlFor="sim-desc" className="form-label">
-            <span>תיאור הסימולציה</span>
-            <span className="required-mark">*</span>
-          </label>
-          <p className="form-hint">פירוט הרקע, מטרות האימון, הכוחות המעורבים והאתגרים הצפויים</p>
-          <textarea
-            id="sim-desc"
-            className={`form-textarea ${errors.description ? 'input-error' : ''}`}
-            placeholder="פרט כאן את מהלך התרחיש, תנאי השטח והנחיות הפעולה לצוות..."
-            rows={4}
-            value={formData.description}
-            onChange={(e) => {
-              setFormData({ ...formData, description: e.target.value });
-              if (errors.description) setErrors({ ...errors, description: undefined });
-            }}
-          />
-          {errors.description && <p className="error-text">{errors.description}</p>}
-        </div>
+          {/* Simulation Name Field */}
+          <div className="builder-form-group">
+            <div className="builder-label-row">
+              <label htmlFor="sim-name-input" className="builder-label">
+                שם הסימולציה
+              </label>
+              <span className="builder-required-tag">חובה</span>
+            </div>
+            <input
+              id="sim-name-input"
+              type="text"
+              className={`builder-input ${errors.title ? 'has-error' : ''}`}
+              placeholder="לדוגמה: מטח פתיחה — עוטף עזה"
+              value={formData.title}
+              onChange={(e) => {
+                setFormData({ ...formData, title: e.target.value });
+                setIsSavedDraft(false);
+                if (errors.title) setErrors({});
+              }}
+            />
+            {errors.title && <p className="builder-error-msg">{errors.title}</p>}
+          </div>
 
-        {/* Difficulty Field */}
-        <div className="form-group">
-          <label className="form-label">
-            <span>רמת קושי</span>
-            <span className="required-mark">*</span>
-          </label>
-          <p className="form-hint">קביעת דרגת המורכבות ועומס האירועים במהלך הסימולציה</p>
-          <div className="difficulty-grid">
-            {DIFFICULTY_OPTIONS.map((opt) => {
+          {/* Simulation Description Field */}
+          <div className="builder-form-group">
+            <div className="builder-label-row">
+              <label htmlFor="sim-desc-input" className="builder-label">
+                תיאור והקשר התרחיש
+              </label>
+            </div>
+            <textarea
+              id="sim-desc-input"
+              className="builder-textarea"
+              placeholder="מה מתרגלים, באיזה הקשר ומה מצופה מהמפעילים"
+              rows={4}
+              value={formData.description}
+              onChange={(e) => {
+                setFormData({ ...formData, description: e.target.value });
+                setIsSavedDraft(false);
+              }}
+            />
+          </div>
+        </section>
+
+        {/* Card 2: רמת קושי והגדרות הזרמה */}
+        <section className="builder-card">
+          <div className="builder-card-header">
+            <h2 className="builder-card-title">רמת קושי והגדרות הזרמה</h2>
+            <p className="builder-card-subtitle">
+              רמת הקושי ממלאת ערכי פתיחה. אפשר לכוונן כל ערך בנפרד.
+            </p>
+          </div>
+
+          <div className="builder-card-divider" />
+
+          {/* 3 Difficulty Cards (קל, בינוני, קשה) */}
+          <div className="difficulty-3grid">
+            {DIFFICULTY_CONFIG.map((opt) => {
               const isSelected = formData.difficulty === opt.level;
               return (
                 <div
                   key={opt.level}
-                  className={`difficulty-card ${isSelected ? 'difficulty-card-selected' : ''}`}
-                  onClick={() => setFormData({ ...formData, difficulty: opt.level })}
+                  className={`difficulty-pill-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => {
+                    setFormData({ ...formData, difficulty: opt.level });
+                    setIsSavedDraft(false);
+                  }}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       setFormData({ ...formData, difficulty: opt.level });
+                      setIsSavedDraft(false);
                     }
                   }}
                 >
-                  <div className="difficulty-card-top">
-                    <span className="difficulty-title">{opt.level}</span>
-                    <span className={`difficulty-tag difficulty-tag-${opt.level}`}>
-                      דרגה
+                  <div className="difficulty-top-row">
+                    <span className="difficulty-level-name">{opt.level}</span>
+                    <span className="difficulty-level-icon">
+                      <SignalBarsIcon level={opt.bars} size={16} />
                     </span>
                   </div>
-                  <p className="difficulty-desc">{opt.description}</p>
+
+                  <p className="difficulty-level-desc">{opt.description}</p>
+
+                  <div className="difficulty-level-metrics">{opt.metrics}</div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* Form Actions */}
-        <div className="form-actions">
+        {/* Bottom Navigation Bar */}
+        <div className="builder-bottom-bar">
+          {/* Next Button on the left */}
           <button
             type="button"
-            className="btn-secondary"
-            onClick={() => navigate('/')}
+            className="btn-bottom-next"
+            onClick={handleNext}
           >
-            ביטול וחזרה
-          </button>
-          <button type="submit" className="btn-primary">
-            <span>המשך לבחירת אירועים</span>
+            <span>הבא</span>
             <ArrowLeftIcon size={16} />
           </button>
+
+          {/* Previous Button on the right (disabled on step 1) */}
+          <button
+            type="button"
+            className="btn-bottom-prev"
+            disabled
+          >
+            <ArrowRightIcon size={16} />
+            <span>הקודם</span>
+          </button>
         </div>
-      </form>
+      </main>
     </div>
   );
 }

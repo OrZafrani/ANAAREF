@@ -123,3 +123,4 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
     </div>
   );
 }
+

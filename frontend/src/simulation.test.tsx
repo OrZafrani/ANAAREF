@@ -5,9 +5,8 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import CreateSimulation from './pages/CreateSimulation';
 import SelectEvents from './pages/SelectEvents';
-import NewSimulationModal from './components/NewSimulationModal';
 
-describe('Simulation Flow', () => {
+describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -45,7 +44,7 @@ describe('Simulation Flow', () => {
     expect(screen.getByText('בקרוב')).toBeInTheDocument();
   });
 
-  it('renders create simulation page with title, description, and difficulty level', () => {
+  it('renders create simulation page matching mockup elements', () => {
     render(
       <MemoryRouter initialEntries={['/simulations/new']}>
         <Routes>
@@ -54,18 +53,34 @@ describe('Simulation Flow', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByLabelText(/כותרת הסימולציה/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/תיאור הסימולציה/i)).toBeInTheDocument();
-    expect(screen.getByText('רמת קושי')).toBeInTheDocument();
+    // Header elements
+    expect(screen.getByText('לוח הבקרה')).toBeInTheDocument();
+    expect(screen.getByText('בונה ידני · סימולציה חדשה')).toBeInTheDocument();
+    expect(screen.getByText('סימולציה ללא שם')).toBeInTheDocument();
+    expect(screen.getByText('SPECTRE')).toBeInTheDocument();
 
-    // Check difficulty options
+    // Stepper pills
+    expect(screen.getByText('פרטים והגדרות')).toBeInTheDocument();
+    expect(screen.getByText('תוכן')).toBeInTheDocument();
+    expect(screen.getByText('סקירה ושמירה')).toBeInTheDocument();
+
+    // Card 1
+    expect(screen.getByText('פרטי הסימולציה')).toBeInTheDocument();
+    expect(screen.getByLabelText(/שם הסימולציה/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/תיאור והקשר התרחיש/i)).toBeInTheDocument();
+
+    // Card 2
+    expect(screen.getByText('רמת קושי והגדרות הזרמה')).toBeInTheDocument();
     expect(screen.getByText('קל')).toBeInTheDocument();
     expect(screen.getByText('בינוני')).toBeInTheDocument();
     expect(screen.getByText('קשה')).toBeInTheDocument();
-    expect(screen.getByText('מומחה')).toBeInTheDocument();
+
+    // Bottom action bar
+    expect(screen.getByRole('button', { name: /הבא/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /הקודם/i })).toBeInTheDocument();
   });
 
-  it('validates required fields on create simulation page', () => {
+  it('validates simulation name on create simulation page', () => {
     render(
       <MemoryRouter initialEntries={['/simulations/new']}>
         <Routes>
@@ -74,17 +89,16 @@ describe('Simulation Flow', () => {
       </MemoryRouter>
     );
 
-    const submitBtn = screen.getByRole('button', { name: /המשך לבחירת אירועים/i });
-    fireEvent.click(submitBtn);
+    const nextBtn = screen.getByRole('button', { name: /הבא/i });
+    fireEvent.click(nextBtn);
 
-    expect(screen.getByText('נא להזין כותרת לסימולציה')).toBeInTheDocument();
-    expect(screen.getByText('נא להזין תיאור מפורט לסימולציה')).toBeInTheDocument();
+    expect(screen.getByText('נא להזין שם לסימולציה')).toBeInTheDocument();
   });
 
-  it('renders events selection page and tracks amount of selected events', () => {
+  it('renders events selection step 2 and tracks amount of selected events', () => {
     const testState = {
-      title: 'תרגיל כוננות צפוני',
-      description: 'תרחיש הדמיית אירוע חירום',
+      title: 'מטח פתיחה — עוטף עזה',
+      description: 'תרגול תרחיש תגובה מהירה',
       difficulty: 'קשה' as const,
     };
 
@@ -96,8 +110,8 @@ describe('Simulation Flow', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('תרגיל כוננות צפוני')).toBeInTheDocument();
-    expect(screen.getByText('רמת קושי: קשה')).toBeInTheDocument();
+    expect(screen.getAllByText('מטח פתיחה — עוטף עזה').length).toBeGreaterThan(0);
+    expect(screen.getByText('קשה')).toBeInTheDocument();
 
     // Initially 0 selected events
     expect(screen.getByText('טרם נבחרו אירועים לסימולציה זו')).toBeInTheDocument();
@@ -107,7 +121,7 @@ describe('Simulation Flow', () => {
     expect(addButtons.length).toBeGreaterThan(0);
     fireEvent.click(addButtons[0]);
 
-    // Amount of events in simulation should update
+    // Check count and selection state
     expect(screen.getByText('נבחר לסימולציה')).toBeInTheDocument();
     expect(screen.getByText('אירועים בסימולציה (1)')).toBeInTheDocument();
   });

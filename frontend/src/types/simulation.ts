@@ -21,3 +21,4 @@ export interface Simulation extends SimulationFormData {
   events: SimulationEvent[];
   createdAt: string;
 }
+

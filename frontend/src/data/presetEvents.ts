@@ -58,3 +58,4 @@ export const PRESET_EVENTS: SimulationEvent[] = [
     description: 'הפעלת צוותי עזרה ראשונה והכוונת פינוי מוסק/רכוב לנקודת חבירה.',
   },
 ];
+
