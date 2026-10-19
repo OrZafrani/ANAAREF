@@ -1,18 +1,29 @@
 .home-container {
-  max-width: 720px;
+  max-width: 800px;
   margin: 0 auto;
+  padding: 1rem 0 3rem 0;
+  direction: rtl;
+  text-align: right;
 }
 
 .home-title {
   text-align: right;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 1.5rem;
 }
 
 .home-subtitle {
   text-align: right;
+  color: #64748b;
+  font-size: 1rem;
+  margin-top: -1rem;
+  margin-bottom: 2rem;
 }
 
 .error {
-  color: red;
+  color: #e11d48;
 }
 
 .json-output {
@@ -22,4 +33,155 @@
   overflow-x: auto;
   text-align: left;
   direction: ltr;
+}
+
+/* New Simulation Action Bar */
+.sim-action-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sim-action-text h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.sim-action-text p {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.btn-new-simulation {
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #0f172a;
+  padding: 0.7rem 1.4rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+}
+
+.btn-new-simulation:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.12);
+}
+
+/* Saved Simulations List */
+.simulations-list-section {
+  margin-top: 2rem;
+}
+
+.simulations-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.simulations-list-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.sim-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.saved-sim-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease;
+}
+
+.saved-sim-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.saved-sim-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.saved-sim-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.saved-sim-badges {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.saved-sim-desc {
+  font-size: 0.88rem;
+  color: #475569;
+  margin: 0 0 1rem 0;
+  line-height: 1.45;
+}
+
+.saved-sim-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.saved-sim-events-count {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.delete-sim-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.delete-sim-btn:hover {
+  color: #e11d48;
 }
