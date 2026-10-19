@@ -1,0 +1,132 @@
+.global-navbar {
+  background: #ffffff;
+  border-bottom: 2px solid #e5a81e;
+  padding: 0.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  direction: rtl;
+  min-height: 60px;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cobra-brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.brand-text-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title-main {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+
+.brand-tagline-sub {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+}
+
+.navbar-controls-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.target-sys-label {
+  font-size: 0.82rem;
+  color: #4b5563;
+  font-weight: 500;
+  margin-inline-end: 0.35rem;
+}
+
+.navbar-pill-btn {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.navbar-pill-btn:hover {
+  border-color: #9ca3af;
+  background-color: #f9fafb;
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.dot-yellow {
+  background-color: #e5a81e;
+}
+
+.dot-purple {
+  background-color: #9333ea;
+}
+
+.btn-darkmode-toggle {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.btn-darkmode-toggle:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.user-avatar-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-inline-start: 0.25rem;
+  user-select: none;
+}

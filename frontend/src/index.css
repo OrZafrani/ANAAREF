@@ -2,8 +2,25 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
+html {
+  direction: rtl;
+}
+
 body {
   margin: 0;
   direction: rtl;
-  text-align: right;
+  text-align: start;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+input, textarea, select {
+  direction: rtl;
+  text-align: start;
+}
+
+input::placeholder, textarea::placeholder {
+  text-align: start;
 }
