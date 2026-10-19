@@ -1,18 +1,30 @@
-/* Pre-bar for the Dark "+ סימולציה חדשה" button matching mockup */
-.builder-pre-bar {
-  padding: 1.25rem 2.5rem 0.5rem 2.5rem;
+/* Wrapper to constrain all builder headers to same container as cards */
+.builder-header-container {
+  max-width: 1140px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.25rem 2rem 0.5rem 2rem;
+  box-sizing: border-box;
   display: flex;
-  justify-content: flex-start; /* in RTL, flex-start is on the right, but we want it on the left! */
-  direction: ltr; /* use ltr so flex-start is left */
+  flex-direction: column;
+  gap: 0.75rem;
+  direction: rtl;
+}
+
+/* Pre-bar: Dark "+ סימולציה חדשה" button on the LEFT */
+.builder-pre-bar {
+  display: flex;
+  justify-content: flex-end; /* in RTL, flex-end pushes to the LEFT side */
+  align-items: center;
 }
 
 .btn-dark-new-sim {
   background: #374151;
   color: #ffffff;
   border: 1px solid #374151;
-  padding: 0.55rem 1.15rem;
+  padding: 0.5rem 1.15rem;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
@@ -28,21 +40,18 @@
   border-color: #1f2937;
 }
 
-/* Builder Top Bar */
+/* Builder Top Bar (Action row) */
 .builder-top-bar {
-  background: transparent;
-  padding: 0.5rem 2.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   direction: rtl;
-  min-height: 60px;
-  box-sizing: border-box;
+  min-height: 52px;
 }
 
 .top-bar-right {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1.25rem;
 }
 
@@ -56,7 +65,7 @@
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.4rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   border-radius: 6px;
   transition: background-color 0.15s ease, color 0.15s ease;
   font-family: inherit;
@@ -73,26 +82,27 @@
 }
 
 .sub-title-breadcrumb {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: #6b7280;
   margin-bottom: 0.15rem;
 }
 
 .main-title {
-  font-size: 1.15rem;
+  font-size: 1.18rem;
   font-weight: 700;
   color: #111827;
   margin: 0;
-  max-width: 400px;
+  max-width: 450px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Left side buttons */
 .top-bar-left {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 
 .badge-spectre {
@@ -142,7 +152,7 @@
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.45rem 1rem;
+  padding: 0.45rem 1.1rem;
   border-radius: 6px;
   font-family: inherit;
   transition: all 0.15s ease;
@@ -161,7 +171,7 @@
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0.45rem 1.4rem;
+  padding: 0.45rem 1.45rem;
   border-radius: 6px;
   font-family: inherit;
   transition: all 0.15s ease;
@@ -173,33 +183,31 @@
   border-color: #d89b10;
 }
 
-/* Stepper Bar */
+/* Stepper Area: Positioned on the RIGHT in RTL */
 .builder-stepper-area {
-  padding: 0.75rem 2.5rem 1.25rem 2.5rem;
   display: flex;
-  justify-content: flex-end;
-  direction: rtl;
+  justify-content: flex-start; /* Aligned to the RIGHT in RTL */
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .stepper-pill-group {
   display: inline-flex;
   align-items: center;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-  padding: 0.2rem;
-  gap: 0.4rem;
+  padding: 0.15rem;
+  gap: 0.5rem;
 }
 
 .stepper-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.4rem 1.1rem;
+  padding: 0.4rem 1.15rem;
   border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
@@ -210,7 +218,7 @@
 }
 
 .stepper-pill.active {
-  border-color: #e5a81e;
+  border: 1.5px solid #e5a81e;
   background-color: #ffffff;
 }
 
@@ -252,9 +260,7 @@
 }
 
 @media (max-width: 900px) {
-  .builder-pre-bar,
-  .builder-top-bar,
-  .builder-stepper-area {
+  .builder-header-container {
     padding-left: 1rem;
     padding-right: 1rem;
   }

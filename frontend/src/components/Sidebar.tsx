@@ -11,10 +11,10 @@ export default function Sidebar() {
         className={({ isActive }) => `sidebar-nav-item ${isActive ? 'active' : ''}`}
         title="לוח בקרה"
       >
+        <span className="sidebar-item-text">לוח בקרה</span>
         <span className="sidebar-item-icon">
           <DashboardGridIcon size={18} />
         </span>
-        <span className="sidebar-item-text">לוח בקרה</span>
       </NavLink>
 
       <NavLink
@@ -22,10 +22,10 @@ export default function Sidebar() {
         className={({ isActive }) => `sidebar-nav-item ${isActive ? 'active' : ''}`}
         title="ספריית תוכן"
       >
+        <span className="sidebar-item-text">ספריית תוכן</span>
         <span className="sidebar-item-icon">
           <ContentLibraryIcon size={18} />
         </span>
-        <span className="sidebar-item-text">ספריית תוכן</span>
       </NavLink>
     </aside>
   );

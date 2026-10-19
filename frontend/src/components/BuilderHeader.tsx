@@ -25,7 +25,7 @@ export default function BuilderHeader({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <>
+    <div className="builder-header-container">
       {/* Pre-bar containing "+ סימולציה חדשה" dark button matching mockup */}
       <div className="builder-pre-bar">
         <button
@@ -38,7 +38,7 @@ export default function BuilderHeader({
         </button>
       </div>
 
-      {/* Top Header Bar */}
+      {/* Action Row */}
       <div className="builder-top-bar">
         {/* Right side (RTL start) */}
         <div className="top-bar-right">
@@ -93,7 +93,7 @@ export default function BuilderHeader({
         </div>
       </div>
 
-      {/* Stepper Area */}
+      {/* Stepper Area (aligned to the right side underneath the title) */}
       <div className="builder-stepper-area">
         <div className="stepper-pill-group">
           <button
@@ -130,6 +130,6 @@ export default function BuilderHeader({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
-    </>
+    </div>
   );
 }

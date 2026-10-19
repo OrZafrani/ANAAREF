@@ -6,7 +6,7 @@ import './GlobalNavbar.css';
 export default function GlobalNavbar() {
   return (
     <header className="global-navbar">
-      {/* Right side: Cobra Brand */}
+      {/* Right side: Cobra Brand Logo & Title */}
       <Link to="/" className="navbar-brand-section" title="חזרה לדף הראשי">
         <img src="/cobra_logo.png" alt="COBRA" className="cobra-brand-logo" />
         <div className="brand-text-block">
@@ -25,13 +25,13 @@ export default function GlobalNavbar() {
         </button>
 
         <button type="button" className="navbar-pill-btn">
-          <span className="pill-dot dot-purple" />
           <span>ניהול לחימה</span>
+          <span className="pill-dot dot-purple" />
         </button>
 
         <button type="button" className="btn-darkmode-toggle">
-          <MoonIcon size={14} />
           <span>מצב כהה</span>
+          <MoonIcon size={14} />
         </button>
 
         <div className="user-avatar-badge" title="משתמש מחובר">
