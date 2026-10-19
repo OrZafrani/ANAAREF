@@ -10,7 +10,9 @@
 .layout-body-container {
   display: flex;
   flex: 1;
+  flex-direction: row;
   direction: rtl;
+  min-height: 0;
 }
 
 .layout-main-content {

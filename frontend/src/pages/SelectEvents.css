@@ -9,6 +9,7 @@
   flex-direction: column;
   gap: 1.5rem;
   direction: rtl;
+  text-align: start;
 }
 
 /* Metric Banner */
@@ -74,12 +75,13 @@
   color: #b45309;
 }
 
-/* Two-column layout */
+/* Two-column layout — first DOM card (catalog) sits on the RIGHT in RTL */
 .events-columns-grid {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
   gap: 1.5rem;
   align-items: start;
+  direction: rtl;
 }
 
 @media (max-width: 860px) {
@@ -129,7 +131,7 @@
   gap: 0.85rem;
   max-height: 540px;
   overflow-y: auto;
-  padding-left: 0.25rem;
+  padding-inline-end: 0.25rem;
 }
 
 .catalog-event-box {
@@ -228,7 +230,7 @@
 
 .box-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .btn-add-event {
@@ -293,6 +295,258 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+}
+
+/* Content step single card (mockup: title right, actions left) */
+.content-step-card {
+  padding: 1.25rem 1.5rem 1.5rem 1.5rem;
+}
+
+.content-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.content-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #6b7280;
+}
+
+.content-card-title-group .builder-card-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.content-count-badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.content-duration-label {
+  font-size: 0.84rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.btn-add-from-library {
+  background: #e5a81e;
+  border: 1px solid #e5a81e;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-add-from-library:hover {
+  background: #d89b10;
+  border-color: #d89b10;
+}
+
+.content-empty-state {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.content-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.content-empty-state h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.content-empty-state p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.content-selected-list {
+  max-height: 420px;
+}
+
+/* Content Library Modal */
+.library-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  direction: rtl;
+}
+
+.library-modal-card {
+  background: #ffffff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.library-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem 1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 1rem;
+}
+
+.library-modal-header-text h2 {
+  margin: 0 0 0.3rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.library-modal-header-text p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #64748b;
+}
+
+.library-modal-toolbar {
+  padding: 1rem 1.5rem 0.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.library-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background: #ffffff;
+  color: #6b7280;
+}
+
+.library-search-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #111827;
+  background: transparent;
+  direction: rtl;
+  text-align: start;
+}
+
+.library-filter-pills {
+  margin-bottom: 0;
+}
+
+.library-modal-body {
+  padding: 0.75rem 1.5rem 1rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.library-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.library-selected-count {
+  font-size: 0.84rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.custom-form-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.custom-form-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.custom-form-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.custom-form-actions .btn-bottom-prev,
+.custom-form-actions .btn-bottom-next {
+  padding: 0.4rem 1.1rem;
+}
+
+@media (max-width: 640px) {
+  .content-card-top {
+    align-items: flex-start;
+  }
+  .custom-form-2col {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Selected Events List */
@@ -405,6 +659,8 @@
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 1rem 1.25rem;
+  direction: rtl;
+  text-align: start;
 }
 
 .review-info-item {

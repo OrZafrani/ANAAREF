@@ -3,11 +3,11 @@
   margin: 0 auto;
   padding: 1rem 0 3rem 0;
   direction: rtl;
-  text-align: right;
+  text-align: start;
 }
 
 .home-title {
-  text-align: right;
+  text-align: start;
   font-size: 2rem;
   font-weight: 800;
   color: #0f172a;
@@ -15,7 +15,7 @@
 }
 
 .home-subtitle {
-  text-align: right;
+  text-align: start;
   color: #64748b;
   font-size: 1rem;
   margin-top: -1rem;

@@ -2,7 +2,7 @@
   width: 190px;
   min-width: 190px;
   background: #ffffff;
-  border-left: 1px solid #e5e7eb;
+  border-inline-end: 1px solid #e5e7eb;
   padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
@@ -14,7 +14,8 @@
 .sidebar-nav-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.6rem;
   padding: 0.65rem 0.85rem;
   border-radius: 6px;
   color: #374151;

@@ -1,37 +1,29 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
+import ContentLibraryModal from '../components/ContentLibraryModal';
 import {
   SimulationFormData,
   SimulationEvent,
   Simulation,
-  EventCategory,
 } from '../types/simulation';
 import { PRESET_EVENTS } from '../data/presetEvents';
 import {
   CheckIcon,
-  PlusIcon,
-  TrashIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   CloseIcon,
+  ContentLibraryIcon,
+  LayersIcon,
+  PlusIcon,
 } from '../components/Icons';
 import './SelectEvents.css';
 
-const CATEGORIES: ('הכל' | EventCategory)[] = [
-  'הכל',
-  'מבצעי',
-  'התראה',
-  'תקלה',
-  'חירום',
-  'תקשורת',
-];
-
-const DIFFICULTY_METRICS_MAP: Record<string, string> = {
-  קל: "2/דק'  ·  20 דק'  ·  5/5/10%",
-  בינוני: "4/דק'  ·  30 דק'  ·  15/10/25%",
-  קשה: "8/דק'  ·  45 דק'  ·  25/20/40%",
-  מומחה: "12/דק'  ·  60 דק'  ·  35/30/50%",
+const DIFFICULTY_DURATION_MAP: Record<string, number> = {
+  קל: 20,
+  בינוני: 30,
+  קשה: 45,
+  מומחה: 60,
 };
 
 export default function SelectEvents() {
@@ -61,30 +53,16 @@ export default function SelectEvents() {
   const [currentStep, setCurrentStep] = useState<2 | 3>(2);
   const [availableEvents, setAvailableEvents] = useState<SimulationEvent[]>(PRESET_EVENTS);
   const [selectedEvents, setSelectedEvents] = useState<SimulationEvent[]>([]);
-  const [activeCategory, setActiveCategory] = useState<'הכל' | EventCategory>('הכל');
-
-  // Custom event state
-  const [showCustomForm, setShowCustomForm] = useState(false);
-  const [customTitle, setCustomTitle] = useState('');
-  const [customCategory, setCustomCategory] = useState<EventCategory>('מבצעי');
-  const [customMinute, setCustomMinute] = useState<number>(10);
-  const [customDescription, setCustomDescription] = useState('');
-  const [customError, setCustomError] = useState('');
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
   // Success modal
   const [isSavedSuccess, setIsSavedSuccess] = useState(false);
 
-  const filteredCatalog = availableEvents.filter((evt) => {
-    if (activeCategory === 'הכל') return true;
-    return evt.category === activeCategory;
-  });
-
-  const isEventSelected = (id: string) => {
-    return selectedEvents.some((e) => e.id === id);
-  };
+  const selectedIds = new Set(selectedEvents.map((e) => e.id));
+  const simDuration = DIFFICULTY_DURATION_MAP[simData.difficulty] ?? 30;
 
   const handleToggleEvent = (event: SimulationEvent) => {
-    if (isEventSelected(event.id)) {
+    if (selectedIds.has(event.id)) {
       setSelectedEvents(selectedEvents.filter((e) => e.id !== event.id));
     } else {
       setSelectedEvents([...selectedEvents, event]);
@@ -95,29 +73,9 @@ export default function SelectEvents() {
     setSelectedEvents(selectedEvents.filter((e) => e.id !== id));
   };
 
-  const handleAddCustomEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customTitle.trim()) {
-      setCustomError('נא להזין שם לאירוע');
-      return;
-    }
-
-    const newEvent: SimulationEvent = {
-      id: `custom-${Date.now()}`,
-      title: customTitle.trim(),
-      category: customCategory,
-      minute: Number(customMinute) || 1,
-      description: customDescription.trim() || 'אירוע מותאם אישית שנוצר על ידי המשתמש.',
-    };
-
+  const handleAddCustomEvent = (newEvent: SimulationEvent) => {
     setAvailableEvents([newEvent, ...availableEvents]);
     setSelectedEvents([...selectedEvents, newEvent]);
-
-    setCustomTitle('');
-    setCustomDescription('');
-    setCustomMinute(10);
-    setCustomError('');
-    setShowCustomForm(false);
   };
 
   const handleSaveSimulation = () => {
@@ -179,264 +137,79 @@ export default function SelectEvents() {
       <main className="events-builder-body">
         {currentStep === 2 ? (
           <>
-            {/* Metric Banner Card */}
-            <div className="events-metric-banner">
-              <div className="metric-banner-info">
-                <h2>הגדרות תוכן והזרמת אירועים</h2>
-                <p>
-                  הסימולציה נבנית עבור SPECTRE. בחר את האירועים וההסחות שיוזרמו במהלך התרחיש המבצעי.
-                </p>
-              </div>
-
-              <div className="metric-stat-group">
-                <div className="metric-stat-pill">
-                  <span className="metric-stat-label">רמת קושי</span>
-                  <span className="metric-stat-value">{simData.difficulty}</span>
+            {/* Single content card matching mockup */}
+            <section className="builder-card content-step-card">
+              <div className="content-card-top">
+                <div className="content-card-title-group">
+                  <span className="content-count-badge">{selectedEvents.length}</span>
+                  <h3 className="builder-card-title">דיווחים שנבחרו לסימולציה</h3>
+                  <ContentLibraryIcon size={16} />
                 </div>
-
-                <div className="metric-stat-pill">
-                  <span className="metric-stat-label">קצב הזרמה</span>
-                  <span className="metric-stat-value" style={{ fontSize: '0.85rem' }}>
-                    {DIFFICULTY_METRICS_MAP[simData.difficulty] || "4/דק'"}
-                  </span>
-                </div>
-
-                <div className="metric-stat-pill highlight">
-                  <span className="metric-stat-label">אירועים שנבחרו</span>
-                  <span className="metric-stat-value">{selectedEvents.length}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Events Workspace Columns */}
-            <div className="events-columns-grid">
-              {/* Catalog Section */}
-              <section className="builder-card">
-                <div className="builder-card-header">
-                  <h3 className="builder-card-title">מאגר אירועים והזרמות</h3>
-                  <p className="builder-card-subtitle">
-                    בחר אירועים מהמאגר המבצעי לשיבוץ במהלך הסימולציה
-                  </p>
-                </div>
-
-                <div className="builder-card-divider" />
-
-                {/* Category Filters */}
-                <div className="filter-pills-row">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`filter-pill ${activeCategory === cat ? 'active' : ''}`}
-                      onClick={() => setActiveCategory(cat)}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Catalog List */}
-                <div className="catalog-scroll-list">
-                  {filteredCatalog.map((event) => {
-                    const selected = isEventSelected(event.id);
-                    return (
-                      <div
-                        key={event.id}
-                        className={`catalog-event-box ${selected ? 'is-added' : ''}`}
-                      >
-                        <div className="box-top-line">
-                          <h4 className="box-title">{event.title}</h4>
-                          <div className="box-tags">
-                            <span className={`tag-cat tag-cat-${event.category}`}>
-                              {event.category}
-                            </span>
-                            <span className="tag-minute">דקה {event.minute}</span>
-                          </div>
-                        </div>
-
-                        <p className="box-desc">{event.description}</p>
-
-                        <div className="box-actions">
-                          <button
-                            type="button"
-                            className={`btn-add-event ${selected ? 'added' : ''}`}
-                            onClick={() => handleToggleEvent(event)}
-                          >
-                            {selected ? (
-                              <>
-                                <CheckIcon size={14} />
-                                <span>נבחר לסימולציה</span>
-                              </>
-                            ) : (
-                              <>
-                                <PlusIcon size={14} />
-                                <span>הוסף לסימולציה</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Custom Event Creator */}
-                {!showCustomForm ? (
+                <div className="content-card-actions">
+                  <span className="content-duration-label">{simDuration} דק׳</span>
                   <button
                     type="button"
-                    className="btn-toggle-custom"
-                    onClick={() => setShowCustomForm(true)}
+                    className="btn-add-from-library"
+                    onClick={() => setIsLibraryOpen(true)}
                   >
-                    <PlusIcon size={16} />
-                    <span>הוסף אירוע מותאם אישית</span>
+                    <PlusIcon size={15} />
+                    <span>הוספה מהספרייה</span>
                   </button>
-                ) : (
-                  <form className="custom-event-card" onSubmit={handleAddCustomEvent}>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                      הגדרת אירוע מותאם
-                    </h4>
-                    {customError && <p className="builder-error-msg">{customError}</p>}
+                </div>
+              </div>
 
-                    <div className="builder-form-group">
-                      <label className="builder-label">שם האירוע</label>
-                      <input
-                        type="text"
-                        className="builder-input"
-                        placeholder="לדוגמה: ניתוק מערכות קשר גדודי"
-                        value={customTitle}
-                        onChange={(e) => setCustomTitle(e.target.value)}
-                      />
-                    </div>
+              <div className="builder-card-divider" />
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                      <div className="builder-form-group">
-                        <label className="builder-label">סיווג</label>
-                        <select
-                          className="builder-input"
-                          value={customCategory}
-                          onChange={(e) => setCustomCategory(e.target.value as EventCategory)}
-                        >
-                          <option value="מבצעי">מבצעי</option>
-                          <option value="התראה">התראה</option>
-                          <option value="תקלה">תקלה</option>
-                          <option value="חירום">חירום</option>
-                          <option value="תקשורת">תקשורת</option>
-                        </select>
-                      </div>
-
-                      <div className="builder-form-group">
-                        <label className="builder-label">דקת תזמון</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="180"
-                          className="builder-input"
-                          value={customMinute}
-                          onChange={(e) => setCustomMinute(Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="builder-form-group">
-                      <label className="builder-label">תיאור האירוע</label>
-                      <textarea
-                        className="builder-textarea"
-                        rows={2}
-                        placeholder="פירוט המתרחש באירוע..."
-                        value={customDescription}
-                        onChange={(e) => setCustomDescription(e.target.value)}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className="btn-bottom-prev"
-                        style={{ padding: '0.4rem 0.85rem' }}
-                        onClick={() => setShowCustomForm(false)}
-                      >
-                        ביטול
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn-bottom-next"
-                        style={{ padding: '0.4rem 1.1rem' }}
-                      >
-                        הוסף אירוע
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </section>
-
-              {/* Selected Events Section */}
-              <section className="builder-card">
-                <div className="builder-card-header">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 className="builder-card-title">
-                      אירועים בסימולציה ({selectedEvents.length})
-                    </h3>
-                    {selectedEvents.length > 0 && (
-                      <button
-                        type="button"
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#6b7280',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                        }}
-                        onClick={() => setSelectedEvents([])}
-                      >
-                        נקה הכל
-                      </button>
-                    )}
-                  </div>
-                  <p className="builder-card-subtitle">
-                    רשימת האירועים שירוצו לפי סדר התזמון
+              {selectedEvents.length === 0 ? (
+                <div className="content-empty-state">
+                  <span className="content-empty-icon">
+                    <LayersIcon size={22} />
+                  </span>
+                  <h4>עדיין לא נוסף תוכן</h4>
+                  <p>
+                    הוסיפו דיווחים מהספרייה התוכן, אפשר לבחור בכמה דקות, והלחצים
+                    <br />
+                    משמאלם לכל פריט.
                   </p>
                 </div>
-
-                <div className="builder-card-divider" />
-
-                {selectedEvents.length === 0 ? (
-                  <div className="empty-selected-box">
-                    <p>טרם נבחרו אירועים לסימולציה זו</p>
-                    <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>
-                      בחר אירועים מהמאגר מימין להרכבת התרחיש
-                    </span>
-                  </div>
-                ) : (
-                  <div className="selected-scroll-list">
-                    {selectedEvents.map((evt, idx) => (
-                      <div key={evt.id} className="selected-item-row">
-                        <span className="selected-seq">{idx + 1}</span>
-                        <div className="selected-text">
-                          <h5 className="selected-text-title">{evt.title}</h5>
-                          <div className="selected-text-sub">
-                            <span>סיווג: {evt.category}</span>
-                            <span>•</span>
-                            <span>דקה {evt.minute}</span>
-                          </div>
+              ) : (
+                <div className="selected-scroll-list content-selected-list">
+                  {selectedEvents.map((evt, idx) => (
+                    <div key={evt.id} className="selected-item-row">
+                      <span className="selected-seq">{idx + 1}</span>
+                      <div className="selected-text">
+                        <h5 className="selected-text-title">{evt.title}</h5>
+                        <div className="selected-text-sub">
+                          <span>סיווג: {evt.category}</span>
+                          <span>•</span>
+                          <span>דקה {evt.minute}</span>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-remove-item"
-                          onClick={() => handleRemoveSelected(evt.id)}
-                          title="הסר אירוע מהסימולציה"
-                        >
-                          <TrashIcon size={16} />
-                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
+                      <button
+                        type="button"
+                        className="btn-remove-item"
+                        onClick={() => handleRemoveSelected(evt.id)}
+                        title="הסר אירוע מהסימולציה"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
             {/* Bottom Bar for Step 2 */}
             <div className="builder-bottom-bar">
+              <button
+                type="button"
+                className="btn-bottom-prev"
+                onClick={() => navigate('/simulations/new')}
+              >
+                <ArrowRightIcon size={16} />
+                <span>הקודם</span>
+              </button>
+
               <button
                 type="button"
                 className="btn-bottom-next"
@@ -449,17 +222,8 @@ export default function SelectEvents() {
                   setCurrentStep(3);
                 }}
               >
-                <span>הבא</span>
+                <span>סקירה ושמירה</span>
                 <ArrowLeftIcon size={16} />
-              </button>
-
-              <button
-                type="button"
-                className="btn-bottom-prev"
-                onClick={() => navigate('/simulations/new')}
-              >
-                <ArrowRightIcon size={16} />
-                <span>הקודם</span>
               </button>
             </div>
           </>
@@ -496,7 +260,7 @@ export default function SelectEvents() {
                   <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '0.9rem', color: '#374151' }}>
                     תיאור התרחיש:
                   </h4>
-                  <p style={{ margin: 0, fontSize: '0.86rem', color: '#6b7280', lineHeight: 1.5 }}>
+                  <p style={{ margin: 0, fontSize: '0.86rem', color: '#6b7280', lineHeight: 1.5, direction: 'rtl', textAlign: 'start' }}>
                     {simData.description}
                   </p>
                 </div>
@@ -528,25 +292,35 @@ export default function SelectEvents() {
             <div className="builder-bottom-bar">
               <button
                 type="button"
-                className="btn-bottom-next"
-                onClick={handleSaveSimulation}
-              >
-                <CheckIcon size={16} />
-                <span>שמירה ואישור</span>
-              </button>
-
-              <button
-                type="button"
                 className="btn-bottom-prev"
                 onClick={() => setCurrentStep(2)}
               >
                 <ArrowRightIcon size={16} />
                 <span>הקודם</span>
               </button>
+
+              <button
+                type="button"
+                className="btn-bottom-next"
+                onClick={handleSaveSimulation}
+              >
+                <CheckIcon size={16} />
+                <span>שמירה ואישור</span>
+              </button>
             </div>
           </>
         )}
       </main>
+
+      {/* Content Library Modal */}
+      <ContentLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        availableEvents={availableEvents}
+        selectedIds={selectedIds}
+        onToggle={handleToggleEvent}
+        onAddCustom={handleAddCustomEvent}
+      />
 
       {/* Success Modal */}
       {isSavedSuccess && (
@@ -590,7 +364,7 @@ export default function SelectEvents() {
               </div>
             </div>
 
-            <div className="modal-footer" style={{ gap: '0.75rem' }}>
+            <div className="modal-footer" style={{ gap: '0.75rem', justifyContent: 'flex-start' }}>
               <button
                 type="button"
                 className="modal-cancel-btn"

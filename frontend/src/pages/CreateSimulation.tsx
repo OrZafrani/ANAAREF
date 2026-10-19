@@ -201,17 +201,7 @@ export default function CreateSimulation() {
 
         {/* Bottom Navigation Bar */}
         <div className="builder-bottom-bar">
-          {/* Next Button on the left */}
-          <button
-            type="button"
-            className="btn-bottom-next"
-            onClick={handleNext}
-          >
-            <span>הבא</span>
-            <ArrowLeftIcon size={16} />
-          </button>
-
-          {/* Previous Button on the right (disabled on step 1) */}
+          {/* Previous Button on the right (RTL start, disabled on step 1) */}
           <button
             type="button"
             className="btn-bottom-prev"
@@ -219,6 +209,16 @@ export default function CreateSimulation() {
           >
             <ArrowRightIcon size={16} />
             <span>הקודם</span>
+          </button>
+
+          {/* Next Button on the left (RTL end) */}
+          <button
+            type="button"
+            className="btn-bottom-next"
+            onClick={handleNext}
+          >
+            <span>הבא</span>
+            <ArrowLeftIcon size={16} />
           </button>
         </div>
       </main>

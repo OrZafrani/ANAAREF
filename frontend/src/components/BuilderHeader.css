@@ -277,8 +277,7 @@
 @media (max-width: 900px) {
   .builder-top-bar-inner,
   .builder-stepper-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-inline: 1rem;
   }
   .builder-top-bar {
     flex-direction: column;

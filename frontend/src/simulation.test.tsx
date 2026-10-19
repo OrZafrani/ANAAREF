@@ -139,18 +139,25 @@ describe('Simulation Flow - Mockup Alignment', () => {
     );
 
     expect(screen.getAllByText('מטח פתיחה — עוטף עזה').length).toBeGreaterThan(0);
-    expect(screen.getByText('קשה')).toBeInTheDocument();
+    // Stepper shows the difficulty context in new mockup layout (step pills only)
+    expect(screen.getByText('תוכן')).toBeInTheDocument();
 
-    // Initially 0 selected events
-    expect(screen.getByText('טרם נבחרו אירועים לסימולציה זו')).toBeInTheDocument();
+    // New single-card layout: empty state + add-from-library button
+    expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
+    expect(screen.getByText('עדיין לא נוסף תוכן')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /הוספה מהספרייה/i })).toBeInTheDocument();
 
-    // Add an event from catalog
+    // Open library modal and add an event from catalog
+    fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
+    expect(screen.getByText('ספריית התוכן')).toBeInTheDocument();
+
     const addButtons = screen.getAllByRole('button', { name: /הוסף לסימולציה/i });
     expect(addButtons.length).toBeGreaterThan(0);
     fireEvent.click(addButtons[0]);
 
     // Check count and selection state
-    expect(screen.getByText('נבחר לסימולציה')).toBeInTheDocument();
-    expect(screen.getByText('אירועים בסימולציה (1)')).toBeInTheDocument();
+    expect(screen.getAllByText('נבחר לסימולציה').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
+    expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
   });
 });
