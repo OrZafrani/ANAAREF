@@ -94,21 +94,41 @@ export function LayersIcon({ className = '', size = 18 }: IconProps) {
   );
 }
 
-export function ClockIcon({ className = '', size = 18 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
 export function SignalBarsIcon({ level = 2, size = 16 }: { level?: 1 | 2 | 3; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
       <rect x="4" y="14" width="3.5" height="7" rx="1" opacity={level >= 1 ? 1 : 0.28} />
       <rect x="10.25" y="9" width="3.5" height="12" rx="1" opacity={level >= 2 ? 1 : 0.28} />
       <rect x="16.5" y="4" width="3.5" height="17" rx="1" opacity={level >= 3 ? 1 : 0.28} />
+    </svg>
+  );
+}
+
+export function MoonIcon({ className = '', size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+export function DashboardGridIcon({ className = '', size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+export function ContentLibraryIcon({ className = '', size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
     </svg>
   );
 }

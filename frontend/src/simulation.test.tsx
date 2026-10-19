@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import Layout from './layout/Layout';
 import Home from './pages/Home';
 import CreateSimulation from './pages/CreateSimulation';
 import SelectEvents from './pages/SelectEvents';
@@ -10,6 +11,29 @@ describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+  });
+
+  it('renders global navbar and sidebar matching upper mockup', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Layout>
+          <Home />
+        </Layout>
+      </MemoryRouter>
+    );
+
+    // Global Navbar elements
+    expect(screen.getByText('COBRA')).toBeInTheDocument();
+    expect(screen.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
+    expect(screen.getByText('מערכת יעד')).toBeInTheDocument();
+    expect(screen.getAllByText('SPECTRE').length).toBeGreaterThan(0);
+    expect(screen.getByText('ניהול לחימה')).toBeInTheDocument();
+    expect(screen.getByText('מצב כהה')).toBeInTheDocument();
+    expect(screen.getByText('מה')).toBeInTheDocument();
+
+    // Sidebar navigation
+    expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
+    expect(screen.getByText('ספריית תוכן')).toBeInTheDocument();
   });
 
   it('renders default home view and contains the new simulation trigger button', () => {
@@ -47,17 +71,21 @@ describe('Simulation Flow - Mockup Alignment', () => {
   it('renders create simulation page matching mockup elements', () => {
     render(
       <MemoryRouter initialEntries={['/simulations/new']}>
-        <Routes>
-          <Route path="/simulations/new" element={<CreateSimulation />} />
-        </Routes>
+        <Layout>
+          <Routes>
+            <Route path="/simulations/new" element={<CreateSimulation />} />
+          </Routes>
+        </Layout>
       </MemoryRouter>
     );
 
-    // Header elements
-    expect(screen.getByText('לוח הבקרה')).toBeInTheDocument();
+    // Pre-bar button
+    expect(screen.getAllByRole('button', { name: /סימולציה חדשה/i }).length).toBeGreaterThan(0);
+
+    // Builder header
+    expect(screen.getByRole('button', { name: /לוח הבקרה/i })).toBeInTheDocument();
     expect(screen.getByText('בונה ידני · סימולציה חדשה')).toBeInTheDocument();
     expect(screen.getByText('סימולציה ללא שם')).toBeInTheDocument();
-    expect(screen.getByText('SPECTRE')).toBeInTheDocument();
 
     // Stepper pills
     expect(screen.getByText('פרטים והגדרות')).toBeInTheDocument();

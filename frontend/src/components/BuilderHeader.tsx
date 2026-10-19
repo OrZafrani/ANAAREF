@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightIcon, CheckIcon } from './Icons';
+import { ArrowRightIcon, CheckIcon, PlusIcon } from './Icons';
+import NewSimulationModal from './NewSimulationModal';
 import './BuilderHeader.css';
 
 interface BuilderHeaderProps {
@@ -21,11 +22,24 @@ export default function BuilderHeader({
   isSaved = true,
 }: BuilderHeaderProps) {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <>
+      {/* Pre-bar containing "+ סימולציה חדשה" dark button matching mockup */}
+      <div className="builder-pre-bar">
+        <button
+          type="button"
+          className="btn-dark-new-sim"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <PlusIcon size={16} />
+          <span>סימולציה חדשה</span>
+        </button>
+      </div>
+
       {/* Top Header Bar */}
-      <header className="builder-top-bar">
+      <div className="builder-top-bar">
         {/* Right side (RTL start) */}
         <div className="top-bar-right">
           <button
@@ -77,7 +91,7 @@ export default function BuilderHeader({
             שמירה
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Stepper Area */}
       <div className="builder-stepper-area">
@@ -110,6 +124,12 @@ export default function BuilderHeader({
           </button>
         </div>
       </div>
+
+      {/* New Simulation Modal */}
+      <NewSimulationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </>
   );
 }
