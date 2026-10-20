@@ -18,6 +18,7 @@ import {
   type TemplateWrite,
 } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
+import { getUrgency } from '../lib/urgency';
 import './LibraryPage.css';
 
 type Selection = { categoryId: string | null; subCategoryId: string | null };
@@ -40,13 +41,6 @@ type ContextMenu = {
 const canWrite = import.meta.env.VITE_LIBRARY_WRITE_ENABLED !== 'false';
 const contains = (value: string | null | undefined, query: string) =>
   (value ?? '').toLocaleLowerCase().includes(query.toLocaleLowerCase());
-
-function riskOf(value: number | null) {
-  if (value == null) return { cls: 'r-unk', label: 'לא ידוע' };
-  if (value >= 70) return { cls: 'r-high', label: 'גבוה' };
-  if (value >= 40) return { cls: 'r-med', label: 'בינוני' };
-  return { cls: 'r-low', label: 'נמוך' };
-}
 
 export default function LibraryPage() {
   const { sys } = useAppSettings();
@@ -327,7 +321,7 @@ export default function LibraryPage() {
             ) : (
               <div className="template-grid">
                 {visibleTemplates.map((template) => {
-                  const risk = riskOf(template.threat_level);
+                  const risk = getUrgency(template.threat_level);
                   const location = [template.city, template.country].filter(Boolean).join(' · ');
                   return <article className="card template-card" key={template.id} onClick={() => setTemplateDialog({ mode: 'view', template })}>
                     <div className="card-tags">
@@ -345,7 +339,7 @@ export default function LibraryPage() {
                     <div className="facts">
                       <span className="fact"><PinIcon size={15} /><span className={location ? '' : 'unk'}>{location || 'מיקום לא דווח'}</span></span>
                       <span className="fact"><ClockIcon size={15} />התרחשות {new Date(template.happened_at ?? template.collected_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className={`risk ${risk.cls}`}>דחיפות: {risk.label}</span>
+                      <span className={`risk r-${risk.level}`}>דחיפות: {risk.label}</span>
                     </div>
                     <div className="facts">
                       <span className={`cas-side cas-blue ${template.blue_injured_count == null ? 'unk' : ''}`}><i className="side-dot" aria-hidden="true" /><b>כוחותינו:</b> {template.blue_injured_count ?? 'לא ידוע'}</span>

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import CoordinatePicker from './CoordinatePicker';
 import type { CategoryNode, LibraryTemplate, TemplateWrite } from '../../lib/libraryApi';
+import { getUrgency } from '../../lib/urgency';
 
 type ModalMode = 'view' | 'edit' | 'create';
 type FormState = {
@@ -149,6 +150,7 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
 
   const title = mode === 'view' ? template?.report_title || 'תבנית ללא כותרת'
     : mode === 'edit' ? 'עריכת תבנית' : 'תבנית חדשה';
+  const urgency = template ? getUrgency(template.threat_level) : null;
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
@@ -167,8 +169,8 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
           <div className="template-details">
             <div className="detail-badges">
               <span className="platform-tag">{template.platform}</span>
-              <span className={`threat-tag threat-${Math.min(5, Math.max(1, Math.ceil((template.threat_level ?? 0) / 20)))}`}>
-                איום {displayValue(template.threat_level)}
+              <span className={`threat-tag threat-${urgency?.level ?? 'unknown'}`}>
+                דחיפות: {urgency?.label} ({displayValue(template.threat_level)})
               </span>
               <span>{template.is_official ? 'מקור רשמי' : 'מקור פתוח'}</span>
             </div>

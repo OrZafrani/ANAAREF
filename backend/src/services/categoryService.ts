@@ -8,6 +8,7 @@ export interface CategoryTreeItem {
   report_count: number;
   sub_categories: Array<{
     id: string;
+    category_id: string;
     name: string;
     report_count: number;
   }>;
@@ -30,6 +31,7 @@ export async function getCategoryTree(): Promise<CategoryTreeItem[]> {
       COALESCE(
         json_agg(json_build_object(
           'id', s.id,
+          'category_id', s.category_id,
           'name', s.name,
           'report_count', s.report_count
         ) ORDER BY s.name) FILTER (WHERE s.id IS NOT NULL),

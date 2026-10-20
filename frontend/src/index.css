@@ -10,14 +10,19 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html {
   direction: rtl;
+  min-width: 320px;
+  min-height: 100%;
 }
 
 body {
   margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
   direction: rtl;
   text-align: start;
   background: var(--bg);
@@ -26,6 +31,19 @@ body {
 
 *, *::before, *::after {
   box-sizing: border-box;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid rgba(229, 168, 30, 0.55);
+  outline-offset: 2px;
 }
 
 input, textarea, select {
@@ -39,6 +57,14 @@ input::placeholder, textarea::placeholder {
   opacity: .8;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 button, input, select, textarea { font-family: inherit; color: inherit; }
 
 a { color: var(--sys-strong); }

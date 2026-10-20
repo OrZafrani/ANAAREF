@@ -48,20 +48,27 @@ export interface LibraryTemplate {
 export type TemplateWrite = Omit<LibraryTemplate,
   'id' | 'template_created_at' | 'template_updated_at' | 'category_name' | 'sub_category_name'>;
 
+export const LIBRARY_API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
+
+function libraryUrl(path: string): string {
+  if (!LIBRARY_API_BASE) return path;
+  return `${String(LIBRARY_API_BASE).replace(/\/$/, '')}${path}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(libraryUrl(path), {
     ...init,
     headers: {
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
       ...init?.headers,
     },
   });
+  if (response.status === 204) return undefined as T;
+  const payload = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
     throw new Error(payload?.error ?? `Request failed (${response.status})`);
   }
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  return payload as T;
 }
 
 export function getCategoryTree() {

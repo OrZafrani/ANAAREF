@@ -128,7 +128,39 @@
 
 @media (max-width: 768px) {
   .difficulty-3grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .builder-page-body {
+    padding: 0 0.9rem 2rem;
+    gap: 1rem;
+  }
+
+  .builder-card {
+    padding: 1.1rem;
+  }
+
+  .difficulty-3grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .difficulty-pill-card {
+    min-height: 0;
+    padding: 1rem;
+  }
+
+  .builder-bottom-bar {
+    gap: 0.75rem;
+  }
+
+  .btn-bottom-prev,
+  .btn-bottom-next {
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 0.9rem;
   }
 }
 

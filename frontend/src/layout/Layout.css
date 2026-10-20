@@ -8,6 +8,7 @@
 
 .layout-app {
   direction: rtl;
+  overflow-x: clip;
 }
 
 .layout-body-container {
@@ -25,6 +26,31 @@
   display: flex;
   flex-direction: column;
 }
+
+@media (max-width: 700px) {
+  .layout-body-container {
+    flex-direction: column;
+  }
+
+  .layout-main-content {
+    width: 100%;
+  }
+}
+
+.layout[data-theme='dark'] .layout-body-container { background: #101419; }
+.layout[data-theme='dark'] .global-navbar,
+.layout[data-theme='dark'] .app-sidebar { border-color: #292f36; background: #11161b; }
+.layout[data-theme='dark'] .brand-title-main,
+.layout[data-theme='dark'] .navbar-pill-btn,
+.layout[data-theme='dark'] .btn-darkmode-toggle,
+.layout[data-theme='dark'] .sidebar-nav-item { color: #e8ebef; }
+.layout[data-theme='dark'] .brand-tagline-sub,
+.layout[data-theme='dark'] .target-sys-label,
+.layout[data-theme='dark'] .sidebar-item-icon { color: #a0a9b3; }
+.layout[data-theme='dark'] .navbar-pill-btn,
+.layout[data-theme='dark'] .btn-darkmode-toggle { border-color: #363d46; background: #171c22; }
+.layout[data-theme='dark'] .sidebar-nav-item:hover,
+.layout[data-theme='dark'] .sidebar-nav-item.active { color: #f0c63e; background: #1a2027; }
 
 @media (max-width: 780px) {
   .layout-body-container { flex-direction: column; }

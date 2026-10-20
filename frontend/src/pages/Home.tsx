@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import NewSimulationModal from '../components/NewSimulationModal';
+import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
-import { DifficultyLevel, Simulation } from '../types/simulation';
+import type { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
@@ -9,15 +10,6 @@ import { PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/I
 import './Home.css';
 
 const DELETE_CONFIRM = 'האם אתה בטוח שברצונך למחוק את הסימולציה?';
-
-function readSimulations(): Simulation[] {
-  try {
-    const stored = localStorage.getItem('cobra_simulations');
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
 
 function hasDraft() {
   try {
@@ -31,12 +23,33 @@ export default function Home() {
   const { sys } = useAppSettings();
   const sysInfo = SYSTEM_INFO[sys];
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [allSimulations, setAllSimulations] = useState<Simulation[]>(readSimulations);
+  const [allSimulations, setAllSimulations] = useState<Simulation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'all'>('all');
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
   const draftOpen = hasDraft();
+
+  useEffect(() => {
+    let isMounted = true;
+    listSimulations()
+      .then((results) => {
+        if (isMounted) setAllSimulations(results);
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) setError(loadError instanceof Error ? loadError.message : 'טעינת הסימולציות נכשלה');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -50,7 +63,6 @@ export default function Home() {
     return () => { active = false; };
   }, []);
 
-  // Simulations saved before the system switch existed have no sys and belong to SPECTRE.
   const simulations = useMemo(
     () => allSimulations.filter((sim) => (sim.sys ?? 'spectre') === sys),
     [allSimulations, sys],
@@ -74,15 +86,18 @@ export default function Home() {
   const openSimulation = allSimulations.find((sim) => sim.id === openId) ?? null;
   const filtersActive = difficulty !== 'all' || search.trim() !== '';
 
-  const handleDeleteSimulation = (id: string) => {
+  const handleDeleteSimulation = async (id: string) => {
     if (!window.confirm(DELETE_CONFIRM)) return;
-    const updated = allSimulations.filter((s) => s.id !== id);
-    setAllSimulations(updated);
-    if (openId === id) setOpenId(null);
+    setIsDeleting(id);
+    setError('');
     try {
-      localStorage.setItem('cobra_simulations', JSON.stringify(updated));
-    } catch {
-      // ignore
+      await deleteSimulation(id);
+      setAllSimulations((current) => current.filter((simulation) => simulation.id !== id));
+      if (openId === id) setOpenId(null);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'מחיקת הסימולציה נכשלה');
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -152,6 +167,8 @@ export default function Home() {
           </div>
         </div>
 
+        {error && <p role="alert">{error}</p>}
+        {isLoading && <p role="status">טוען סימולציות...</p>}
         <div className="card dash-toolbar">
           <label className="search">
             <SearchIcon className="ic" size={18} />

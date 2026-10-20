@@ -1,5 +1,4 @@
 /* Dashboard. Layout follows the COBRA prototype; colours come from styles/tokens.css. */
-
 .dash {
   width: 100%;
   max-width: 1280px;
@@ -362,4 +361,36 @@
 
 @media (max-width: 560px) {
   .kpis { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .home-container {
+    padding: 1rem 0.9rem 2rem;
+  }
+
+  .home-title {
+    font-size: 1.6rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .sim-action-section {
+    align-items: stretch;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-new-simulation {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .saved-sim-card {
+    padding: 1rem;
+  }
+
+  .saved-sim-top {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }

@@ -8,6 +8,7 @@ const config: UserConfig & { test: { globals: boolean; environment: string; setu
   server: {
     port: Number(process.env.VITE_PORT) || 5173,
     proxy: {
+
       '/health': apiTarget,
       '/api': apiTarget,
     }
