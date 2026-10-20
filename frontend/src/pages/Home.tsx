@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewSimulationModal from '../components/NewSimulationModal';
+import AiSavedSimulations from '../components/ai/AiSavedSimulations';
 import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import type { DifficultyLevel, Simulation } from '../types/simulation';
-import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
+import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS, getSimulationMetrics } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import { getRunningSimulation, getSimulationRuns, startRun, stopRun, SimulationRun } from '../lib/runsApi';
@@ -357,14 +358,14 @@ export default function Home() {
         {visible.length > 0 ? (
           <div className="sim-grid">
             {visible.map((sim) => {
-              const preset = DIFFICULTY_PRESETS[sim.difficulty];
+              const preset = getSimulationMetrics(sim);
               const categories = Array.from(new Set(sim.events.map((event) => event.category))).slice(0, 3);
               const isRunning = activeRun?.simulation_id === sim.id;
               const blockReason = runBlockReason(sim, activeRun);
               return (
                 <article key={sim.id} className="card sim-card">
                   <span className="badge b-var sim-creation-badge">
-                    {sim.aiGenerated ? 'נוצרה בAI' : 'נוצרה ידנית'}
+                    {sim.aiGenerated ? 'נוצרה באמצעות AI' : 'נוצרה ידנית'}
                   </span>
                   <div className="chips">
                     {isRunning
@@ -444,6 +445,8 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <AiSavedSimulations />
 
       <section className="dash-sec" aria-labelledby="runs-title">
         <h2 className="dash-sec-title" id="runs-title">

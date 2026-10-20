@@ -28,6 +28,7 @@ export interface SimulationFormData {
 export interface Simulation extends SimulationFormData {
   id: string;
   aiGenerated?: boolean;
+  lengthSeconds?: number;
   /** Target system the simulation was built for. Missing on older saves, which are SPECTRE. */
   sys?: 'spectre' | 'cm';
   events: SimulationEvent[];

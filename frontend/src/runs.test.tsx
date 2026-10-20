@@ -135,6 +135,22 @@ describe('running a simulation from the dashboard', () => {
     expect(screen.getByRole('dialog', { name: 'מטח פתיחה' })).toBeInTheDocument();
   });
 
+  it('keeps AI duration and second-level offsets alongside run history in the drawer', async () => {
+    mockBackend({
+      simulations: [simulation({ aiGenerated: true, lengthSeconds: 60, events: [{ ...event, minute: 0.5 }] })],
+      runs: [run({ status: 'completed', completed_at: new Date().toISOString() })],
+    });
+    renderHome();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'מטח פתיחה' }));
+    const drawer = screen.getByRole('dialog', { name: 'מטח פתיחה' });
+    const duration = within(drawer).getByText('משך').closest('.kcell');
+    expect(duration).toHaveTextContent('1 דק׳');
+    expect(within(drawer).getByText('T+00:30')).toBeInTheDocument();
+    expect(within(drawer).getByText('היסטוריית ריצות · 1')).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: 'הרצה' })).toBeEnabled();
+  });
+
   it('explains instead of starting while another simulation runs', async () => {
     const fetchMock = mockBackend({
       simulations: [simulation(), simulation({ id: 's2', title: 'תרגול בסיסי' })],

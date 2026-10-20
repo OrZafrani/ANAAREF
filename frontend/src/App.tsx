@@ -4,6 +4,7 @@ import LibraryPage from './pages/LibraryPage';
 import Home from './pages/Home';
 import CreateSimulation from './pages/CreateSimulation';
 import SelectEvents from './pages/SelectEvents';
+import AiSimulation from './pages/AiSimulation';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/simulations/new" element={<CreateSimulation />} />
           <Route path="/simulations/:simulationId/edit/events" element={<SelectEvents />} />
           <Route path="/simulations/events" element={<SelectEvents />} />
+          <Route path="/simulations/ai" element={<AiSimulation />} />
         </Routes>
       </Layout>
     </BrowserRouter>

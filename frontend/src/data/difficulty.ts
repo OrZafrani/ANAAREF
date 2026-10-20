@@ -1,4 +1,4 @@
-import { DifficultyLevel } from '../types/simulation';
+import { DifficultyLevel, Simulation } from '../types/simulation';
 
 /** Default streaming settings per difficulty, as offered in the builder (CreateSimulation). */
 export const DIFFICULTY_PRESETS: Record<DifficultyLevel, { level: 1 | 2 | 3; ratePerMin: number | null; durationMin: number | null }> = {
@@ -8,3 +8,12 @@ export const DIFFICULTY_PRESETS: Record<DifficultyLevel, { level: 1 | 2 | 3; rat
 };
 
 export const DIFFICULTY_FILTERS: DifficultyLevel[] = ['קל', 'בינוני', 'קשה'];
+
+export function getSimulationMetrics(simulation: Simulation) {
+  const preset = DIFFICULTY_PRESETS[simulation.difficulty];
+  const durationMin = simulation.lengthSeconds != null ? simulation.lengthSeconds / 60 : preset.durationMin;
+  const ratePerMin = simulation.aiGenerated && durationMin
+    ? Number((simulation.events.length / durationMin).toFixed(1))
+    : preset.ratePerMin;
+  return { durationMin, ratePerMin };
+}

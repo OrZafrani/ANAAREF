@@ -87,13 +87,12 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
             <button
               type="button"
               className="choice"
-              disabled
-              title="אפשרות זו אינה זמינה כעת"
+              onClick={() => { onClose(); navigate('/simulations/ai'); }}
             >
               <span className="choice-ic"><AiIcon size={22} /></span>
               <span className="choice-t-row">
                 <span className="choice-t">יצירה אוטומטית (AI)</span>
-                <span className="badge b-diff">בקרוב</span>
+                <span className="badge b-diff">AI</span>
               </span>
               <span className="choice-d">
                 הגדרת התרחיש בטופס ובשיחה, ואז יצירת {sysInfo.unitItems} מקוריים שאפשר לערוך מיד.
@@ -103,7 +102,7 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
                 <li>יצירה ובדיקה: עריכה והוספה מהספרייה</li>
                 <li>שמירה</li>
               </ul>
-              <span className="choice-note">האפשרות נמצאת בפיתוח ותהיה זמינה בגרסה עתידית.</span>
+              <span className="choice-note">תיאור תרחיש, יצירת דיווחים בשירות AI, בדיקה ושמירה במסד הנתונים.</span>
             </button>
           </div>
         </div>

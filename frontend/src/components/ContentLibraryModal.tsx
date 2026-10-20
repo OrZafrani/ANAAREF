@@ -12,6 +12,8 @@ interface ContentLibraryModalProps {
   selectedIds: Set<string>;
   onToggle: (event: SimulationEvent) => void;
   onAddCustom: (event: SimulationEvent) => void;
+  allowCustom?: boolean;
+  maxMinute?: number;
   isLoading: boolean;
   error: string;
   totalCount: number;
@@ -26,6 +28,8 @@ export default function ContentLibraryModal({
   selectedIds,
   onToggle,
   onAddCustom,
+  allowCustom = true,
+  maxMinute,
   isLoading,
   error,
   totalCount,
@@ -40,6 +44,7 @@ export default function ContentLibraryModal({
   const [customMinute, setCustomMinute] = useState<number>(10);
   const [customDescription, setCustomDescription] = useState('');
   const [customError, setCustomError] = useState('');
+  const [minutes, setMinutes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -183,7 +188,10 @@ export default function ContentLibraryModal({
             ) : (
               filteredEvents.map((libraryEvent) => {
                 const selected = selectedIds.has(libraryEvent.id);
-                const simulationEvent = libraryEvent;
+                const minuteValue = minutes[libraryEvent.id] ?? String(libraryEvent.minute);
+                const minute = maxMinute === undefined ? libraryEvent.minute : Number(minuteValue);
+                const validMinute = maxMinute === undefined || (Number.isInteger(minute) && minute >= 1 && minute <= maxMinute);
+                const simulationEvent = { ...libraryEvent, minute };
                 const categoryLabel = [libraryEvent.categoryName, libraryEvent.subCategory]
                   .filter(Boolean)
                   .join(' · ') || libraryEvent.category;
@@ -192,7 +200,7 @@ export default function ContentLibraryModal({
                   <article
                     key={libraryEvent.id}
                     className={`catalog-event-box library-report-card ${selected ? 'is-added' : ''}`}
-                    onClick={() => onToggle(simulationEvent)}
+                    onClick={() => { if (validMinute) onToggle(simulationEvent); }}
                   >
                     <div className="library-report-meta-top">
                       <label
@@ -202,6 +210,7 @@ export default function ContentLibraryModal({
                         <input
                           type="checkbox"
                           checked={selected}
+                          disabled={!validMinute}
                           aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${libraryEvent.title || 'דיווח ללא כותרת'}`}
                           onChange={() => onToggle(simulationEvent)}
                         />
@@ -219,16 +228,42 @@ export default function ContentLibraryModal({
                       <span className={`library-report-urgency ${urgency.level}`}>
                         דחיפות: {urgency.label}
                       </span>
-                      <span className="library-report-minute">
-                        דקה בסימולציה: {libraryEvent.minute}
-                      </span>
+                      {maxMinute === undefined && (
+                        <span className="library-report-minute">
+                          דקה בסימולציה: {libraryEvent.minute}
+                        </span>
+                      )}
                     </div>
+                    {maxMinute !== undefined && (
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <label className="library-report-minute">
+                          דקה בסימולציה:
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxMinute}
+                            aria-label={`דקה בסימולציה: ${libraryEvent.title}`}
+                            value={minuteValue}
+                            onChange={(event) => setMinutes({ ...minutes, [libraryEvent.id]: event.target.value })}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className={`btn-add-event ${selected ? 'added' : ''}`}
+                          disabled={!validMinute}
+                          aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${libraryEvent.title}`}
+                          onClick={() => onToggle(simulationEvent)}
+                        >
+                          {selected ? 'נבחר לסימולציה' : 'הוסף לסימולציה'}
+                        </button>
+                      </div>
+                    )}
                   </article>
                 );
               })
             )}
 
-            {!showCustomForm ? (
+            {allowCustom && (!showCustomForm ? (
               <button type="button" className="btn-toggle-custom" onClick={() => setShowCustomForm(true)}>
                 <PlusIcon size={16} />
                 <span>הוסף אירוע מותאם אישית</span>
@@ -289,7 +324,7 @@ export default function ContentLibraryModal({
                   <button type="submit" className="btn-bottom-next">הוסף אירוע</button>
                 </div>
               </form>
-            )}
+            ))}
           </div>
         </div>
         <div className="library-modal-footer">

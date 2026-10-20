@@ -140,7 +140,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('יצירת סימולציה חדשה')).toBeInTheDocument();
     expect(screen.getByText('יצירה ידנית')).toBeInTheDocument();
     expect(screen.getByText('יצירה אוטומטית (AI)')).toBeInTheDocument();
-    expect(screen.getByText('בקרוב')).toBeInTheDocument();
+    expect(screen.getByText('AI')).toBeInTheDocument();
   });
 
   it('renders create simulation page matching mockup elements', () => {
@@ -406,6 +406,10 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
 
     expect(await screen.findByText('הסימולציה נשמרה בהצלחה')).toBeInTheDocument();
+    const savedPopup = screen.getByRole('dialog', { name: 'הסימולציה נשמרה בהצלחה' });
+    expect(savedPopup).toHaveTextContent('תרגיל שמור');
+    expect(savedPopup).toHaveTextContent('1 אירועים');
+    expect(within(savedPopup).getByRole('button', { name: 'יצירת סימולציה נוספת' })).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith('/api/simulations', expect.objectContaining({
       method: 'POST',
     }));
