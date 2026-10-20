@@ -91,6 +91,7 @@ export default function SelectEvents() {
       title: simData.title,
       description: simData.description,
       difficulty: simData.difficulty,
+      sys,
       events: selectedEvents,
       createdAt: new Date().toISOString(),
     };

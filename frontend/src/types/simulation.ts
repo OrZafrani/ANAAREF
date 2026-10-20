@@ -18,6 +18,8 @@ export interface SimulationFormData {
 
 export interface Simulation extends SimulationFormData {
   id: string;
+  /** Target system the simulation was built for. Missing on older saves, which are SPECTRE. */
+  sys?: 'spectre' | 'cm';
   events: SimulationEvent[];
   createdAt: string;
 }

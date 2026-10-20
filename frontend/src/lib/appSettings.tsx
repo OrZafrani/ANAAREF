@@ -3,9 +3,19 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 export type Theme = 'light' | 'dark';
 export type TargetSystem = 'spectre' | 'cm';
 
-export const SYSTEM_INFO: Record<TargetSystem, { name: string; unitItems: string; unitOne: string }> = {
-  spectre: { name: 'SPECTRE', unitItems: 'דיווחים', unitOne: 'דיווח' },
-  cm: { name: 'ניהול לחימה', unitItems: 'אירועים', unitOne: 'אירוע' },
+export const SYSTEM_INFO: Record<TargetSystem, { name: string; unitItems: string; unitOne: string; lede: string }> = {
+  spectre: {
+    name: 'SPECTRE',
+    unitItems: 'דיווחים',
+    unitOne: 'דיווח',
+    lede: 'סימולציות של זרם דיווחים לקליטה, לסינון ולהערכה, כולל דיווחים כפולים, שגויים ורעש רקע.',
+  },
+  cm: {
+    name: 'ניהול לחימה',
+    unitItems: 'אירועים',
+    unitOne: 'אירוע',
+    lede: 'סימולציות של אירועים מבצעיים לטיפול, להקצאת כוחות ולמעקב, בקצב ובמשך מוגדרים.',
+  },
 };
 
 interface AppSettings {
