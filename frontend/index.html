@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ANAAREF</title>
+    <title>COBRA — בניית, ניהול והרצת סימולציות</title>
+    <script>
+      // Apply the saved theme and target system before first paint (see src/lib/appSettings.tsx)
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('cobra-theme') === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.sys = localStorage.getItem('cobra-sys') === 'cm' ? 'cm' : 'spectre';
+      } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

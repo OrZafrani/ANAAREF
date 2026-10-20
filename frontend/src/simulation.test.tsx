@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
@@ -23,17 +23,18 @@ describe('Simulation Flow - Mockup Alignment', () => {
     );
 
     // Global Navbar elements
-    expect(screen.getByText('COBRA')).toBeInTheDocument();
-    expect(screen.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
-    expect(screen.getByText('מערכת יעד')).toBeInTheDocument();
-    expect(screen.getAllByText('SPECTRE').length).toBeGreaterThan(0);
-    expect(screen.getByText('ניהול לחימה')).toBeInTheDocument();
-    expect(screen.getByText('מצב כהה')).toBeInTheDocument();
-    expect(screen.getByText('מה')).toBeInTheDocument();
+    const navbar = within(screen.getByRole('banner'));
+    expect(navbar.getByText('COBRA')).toBeInTheDocument();
+    expect(navbar.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
+    expect(navbar.getByText('מערכת יעד')).toBeInTheDocument();
+    expect(navbar.getByText('SPECTRE')).toBeInTheDocument();
+    expect(navbar.getByText('ניהול לחימה')).toBeInTheDocument();
+    expect(navbar.getByText('מצב כהה')).toBeInTheDocument();
+    expect(navbar.getByText('מה')).toBeInTheDocument();
 
     // Sidebar navigation
-    expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
-    expect(screen.getByText('ספריית תוכן')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /לוח בקרה/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ספריית תוכן/ })).toBeInTheDocument();
   });
 
   it('renders default home view and contains the new simulation trigger button', () => {
@@ -43,8 +44,9 @@ describe('Simulation Flow - Mockup Alignment', () => {
       </MemoryRouter>
     );
 
-    // Verify default view is untouched
-    expect(screen.getByText('or the king')).toBeInTheDocument();
+    // Dashboard heading and empty state
+    expect(screen.getByRole('heading', { name: 'לוח בקרה' })).toBeInTheDocument();
+    expect(screen.getByText('עדיין אין סימולציות ב-SPECTRE')).toBeInTheDocument();
 
     // Verify button exists
     const newSimBtn = screen.getByRole('button', { name: /סימולציה חדשה/i });
@@ -212,5 +214,52 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByRole('button', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
+  });
+  it('lists saved simulations for the selected system and filters by difficulty', () => {
+    const base = { description: '', events: [], createdAt: '2026-10-19T10:00:00.000Z' };
+    localStorage.setItem('cobra_simulations', JSON.stringify([
+      { ...base, id: 's1', title: 'מטח פתיחה', difficulty: 'קשה' },
+      { ...base, id: 's2', title: 'תרגול בסיסי', difficulty: 'קל', sys: 'spectre' },
+      { ...base, id: 's3', title: 'אירוע ניהול לחימה', difficulty: 'בינוני', sys: 'cm' },
+    ]));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    // SPECTRE is the default system; older saves without sys count as SPECTRE
+    expect(screen.getByText('מטח פתיחה')).toBeInTheDocument();
+    expect(screen.getByText('תרגול בסיסי')).toBeInTheDocument();
+    expect(screen.queryByText('אירוע ניהול לחימה')).not.toBeInTheDocument();
+    expect(screen.getByText('מוצגות 2 מתוך 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'קל' }));
+    expect(screen.queryByText('מטח פתיחה')).not.toBeInTheDocument();
+    expect(screen.getByText('מוצגות 1 מתוך 2')).toBeInTheDocument();
+  });
+
+  it('opens the simulation summary drawer from a card', () => {
+    localStorage.setItem('cobra_simulations', JSON.stringify([{
+      id: 's1',
+      title: 'מטח פתיחה',
+      description: 'תרגול תגובה מהירה',
+      difficulty: 'בינוני',
+      events: [{ id: 'e1', title: 'זיהוי רחפן', category: 'מבצעי', minute: 8, description: 'כלי טיס זעיר' }],
+      createdAt: '2026-10-19T10:00:00.000Z',
+    }]));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'מטח פתיחה' }));
+    const drawer = screen.getByRole('dialog', { name: 'מטח פתיחה' });
+    expect(drawer).toHaveTextContent('אירועים לפי סדר הזרמה · 1');
+    expect(drawer).toHaveTextContent('T+8');
+    expect(drawer).toHaveTextContent('30 דק׳');
   });
 });

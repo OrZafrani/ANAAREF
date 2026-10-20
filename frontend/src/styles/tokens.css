@@ -1,0 +1,225 @@
+/*
+ * Design tokens, taken from the COBRA prototype.
+ * Theme and target system are set on <html> by Layout:
+ *   data-theme="light" | "dark"
+ *   data-sys="spectre" | "cm"
+ */
+
+:root {
+  --r-md: 6px;
+  --r-lg: 10px;
+  --gutter: 16px;
+  --margin: 16px;
+
+  --font-sans: 'IBM Plex Sans Hebrew', 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --surface-2: #F7F8FA;
+  --raised: #FFFFFF;
+  --field: #FFFFFF;
+  --hover: rgba(17, 24, 39, .05);
+  --line: rgba(17, 24, 39, .10);
+  --line-2: rgba(17, 24, 39, .18);
+  --line-3: rgba(17, 24, 39, .30);
+  --ink: #151B24;
+  --ink-2: #353D4A;
+  --muted: #5F6774;
+  --strong: #232A35;
+  --on-strong: #FFFFFF;
+  --navy: #1E2633;
+  --neutral-btn: #515151;
+  --neutral-btn-hover: #3F3F3F;
+  --toast-bg: #232A35;
+
+  --ok: #2A6B4C;
+  --ok-soft: #EAF3EE;
+  --ok-line: #BCD9C8;
+  --ok-fill: #3B8762;
+  --run: #2A6B4C;
+  --run-hover: #22593F;
+  --on-run: #FFFFFF;
+  --warn: #8A5312;
+  --warn-soft: #FBF2E3;
+  --warn-line: #E9CFA2;
+  --danger: #B3352B;
+  --danger-soft: #FBEDEB;
+  --danger-line: #EDBDB7;
+  --on-danger: #FFFFFF;
+  --adj: #55507F;
+  --adj-soft: #F1F0F6;
+  --adj-line: #D2CFE3;
+
+  --risk-low: #3D6E55;
+  --risk-med: #8A5312;
+  --risk-high: #B3352B;
+  --risk-imm: #8E1846;
+
+  --chip-bg: #EFF1F4;
+  --chip-line: #D6DAE1;
+  --lv-off: #C9CED6;
+  --track: #E8EBEF;
+
+  --id-spectre: #D4A51C;
+  --id-cm: #9A4049;
+  --k-report-bg: #FCF6DD;
+  --k-report-fg: #6E5200;
+  --k-incident-bg: #F7EDEE;
+  --k-incident-fg: #7A2F38;
+  --t-dup-bg: #F0ECFA;
+  --t-dup-fg: #4E3A8E;
+  --t-fals-bg: #FCEFE4;
+  --t-fals-fg: #8F4513;
+  --t-noise-bg: #EFF1F4;
+  --t-noise-fg: #4A5262;
+  --c-dup: #8270C4;
+  --c-fals: #D98C55;
+  --c-noise: #C8CDD5;
+  --side-blue: #2F62A8;
+  --side-red: #B3352B;
+
+  --skel-a: #EDF0F4;
+  --skel-b: #F8F9FB;
+  --scrim: rgba(17, 24, 39, .34);
+  --scrim-2: rgba(17, 24, 39, .42);
+  --float-sh: rgba(17, 24, 39, .22);
+
+  /* Target system: SPECTRE (gold) is the default */
+  --sys: #E2B42A;
+  --sys-hover: #D4A51C;
+  --sys-strong: #6E5200;
+  --sys-soft: #FCF6DD;
+  --sys-line: #EED98F;
+  --sys-tint: rgba(226, 180, 42, .18);
+  --on-sys: #2A1F00;
+  --ds-1: #F1DE9B;
+  --ds-2: #D9AE2E;
+  --ds-3: #6E5200;
+
+  color-scheme: light;
+}
+
+:root[data-sys='cm'] {
+  --sys: #9A4049;
+  --sys-hover: #7A2F38;
+  --sys-strong: #7A2F38;
+  --sys-soft: #F8EEEF;
+  --sys-line: #EACFD2;
+  --sys-tint: rgba(154, 64, 73, .12);
+  --on-sys: #FFFFFF;
+  --ds-1: #E9C7CB;
+  --ds-2: #B8666F;
+  --ds-3: #7A2F38;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0F1318;
+  --surface: #161B22;
+  --surface-2: #1B2129;
+  --raised: #262D37;
+  --field: #11161C;
+  --hover: rgba(230, 237, 245, .06);
+  --line: rgba(230, 237, 245, .10);
+  --line-2: rgba(230, 237, 245, .18);
+  --line-3: rgba(230, 237, 245, .30);
+  --ink: #E6EAF0;
+  --ink-2: #C2C9D3;
+  --muted: #8E98A5;
+  --strong: #E6EAF0;
+  --on-strong: #11161C;
+  --navy: #E6EAF0;
+  --neutral-btn: #3B424D;
+  --neutral-btn-hover: #4A525E;
+  --toast-bg: #262D37;
+
+  --ok: #6CC196;
+  --ok-soft: rgba(108, 193, 150, .13);
+  --ok-line: rgba(108, 193, 150, .38);
+  --ok-fill: #4FAF7E;
+  --run: #4FAF7E;
+  --run-hover: #62BE8F;
+  --on-run: #07130D;
+  --warn: #E2AD62;
+  --warn-soft: rgba(226, 173, 98, .13);
+  --warn-line: rgba(226, 173, 98, .38);
+  --danger: #EE8A80;
+  --danger-soft: rgba(238, 138, 128, .13);
+  --danger-line: rgba(238, 138, 128, .38);
+  --on-danger: #1C0B09;
+  --adj: #B1ABE3;
+  --adj-soft: rgba(177, 171, 227, .13);
+  --adj-line: rgba(177, 171, 227, .35);
+
+  --risk-low: #82C7A3;
+  --risk-med: #E2AD62;
+  --risk-high: #EE8A80;
+  --risk-imm: #F59BC0;
+
+  --chip-bg: rgba(230, 237, 245, .07);
+  --chip-line: rgba(230, 237, 245, .16);
+  --lv-off: #3A424E;
+  --track: rgba(230, 237, 245, .10);
+
+  --id-spectre: #E8C04A;
+  --id-cm: #D99198;
+  --k-report-bg: rgba(232, 192, 74, .14);
+  --k-report-fg: #F2D47E;
+  --k-incident-bg: rgba(217, 145, 152, .14);
+  --k-incident-fg: #ECB7BC;
+  --t-dup-bg: rgba(160, 140, 230, .15);
+  --t-dup-fg: #C6B9F5;
+  --t-fals-bg: rgba(230, 150, 95, .15);
+  --t-fals-fg: #F0B68C;
+  --t-noise-bg: rgba(150, 160, 176, .15);
+  --t-noise-fg: #B6BEC9;
+  --c-dup: #9C89E0;
+  --c-fals: #E09C6B;
+  --c-noise: #4A5361;
+  --side-blue: #7FA9E6;
+  --side-red: #EE8A80;
+
+  --skel-a: #1B2129;
+  --skel-b: #252C36;
+  --scrim: rgba(0, 0, 0, .5);
+  --scrim-2: rgba(0, 0, 0, .58);
+  --float-sh: rgba(0, 0, 0, .55);
+
+  --sys: #E8C04A;
+  --sys-hover: #F0CC5E;
+  --sys-strong: #F2D47E;
+  --sys-soft: rgba(232, 192, 74, .13);
+  --sys-line: rgba(232, 192, 74, .38);
+  --sys-tint: rgba(232, 192, 74, .2);
+  --on-sys: #1F1700;
+  --ds-1: #4D3F14;
+  --ds-2: #B8932A;
+  --ds-3: #F2D47E;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='dark'][data-sys='cm'] {
+  --sys: #D99198;
+  --sys-hover: #ECB7BC;
+  --sys-strong: #ECB7BC;
+  --sys-soft: rgba(217, 145, 152, .13);
+  --sys-line: rgba(217, 145, 152, .36);
+  --sys-tint: rgba(217, 145, 152, .18);
+  --on-sys: #1C0C0E;
+  --ds-1: #553037;
+  --ds-2: #B56A72;
+  --ds-3: #ECB7BC;
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 20px; --margin: 24px; }
+}
+
+@media (min-width: 1024px) {
+  :root { --gutter: 24px; --margin: 32px; }
+}
+
+@media (min-width: 1440px) {
+  :root { --margin: 40px; }
+}
