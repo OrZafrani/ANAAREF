@@ -30,7 +30,7 @@ export default function CoordinatePicker({ latitude, longitude, disabled, onPick
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapClickHandler onPick={onPick} disabled={disabled} />
-        {hasPoint && <CircleMarker center={center} radius={8} pathOptions={{ color: '#174f42', fillColor: '#f0b345', fillOpacity: 1, weight: 2 }} />}
+        {hasPoint && <CircleMarker center={center} radius={8} pathOptions={{ color: '#6E5200', fillColor: '#E2B42A', fillOpacity: 1, weight: 2 }} />}
       </MapContainer>
     </div>
   );

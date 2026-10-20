@@ -1,6 +1,5 @@
-import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
@@ -9,6 +8,7 @@ import SelectEvents from './pages/SelectEvents';
 
 describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
     localStorage.clear();
     sessionStorage.clear();
   });
@@ -23,17 +23,18 @@ describe('Simulation Flow - Mockup Alignment', () => {
     );
 
     // Global Navbar elements
-    expect(screen.getByText('COBRA')).toBeInTheDocument();
-    expect(screen.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
-    expect(screen.getByText('מערכת יעד')).toBeInTheDocument();
-    expect(screen.getAllByText('SPECTRE').length).toBeGreaterThan(0);
-    expect(screen.getByText('ניהול לחימה')).toBeInTheDocument();
-    expect(screen.getByText('מצב כהה')).toBeInTheDocument();
-    expect(screen.getByText('מה')).toBeInTheDocument();
+    const navbar = within(screen.getByRole('banner'));
+    expect(navbar.getByText('COBRA')).toBeInTheDocument();
+    expect(navbar.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
+    expect(navbar.getByText('מערכת יעד')).toBeInTheDocument();
+    expect(navbar.getByText('SPECTRE')).toBeInTheDocument();
+    expect(navbar.getByText('ניהול לחימה')).toBeInTheDocument();
+    expect(navbar.getByText('מצב כהה')).toBeInTheDocument();
+    expect(navbar.getByText('מה')).toBeInTheDocument();
 
     // Sidebar navigation
-    expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
-    expect(screen.getByText('ספריית תוכן')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /לוח בקרה/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ספריית תוכן/ })).toBeInTheDocument();
   });
 
   it('renders default home view and contains the new simulation trigger button', () => {
@@ -43,8 +44,9 @@ describe('Simulation Flow - Mockup Alignment', () => {
       </MemoryRouter>
     );
 
-    // Verify default view is untouched
-    expect(screen.getByText('or the king')).toBeInTheDocument();
+    // Dashboard heading and empty state
+    expect(screen.getByRole('heading', { name: 'לוח בקרה' })).toBeInTheDocument();
+    expect(screen.getByText('עדיין אין סימולציות ב-SPECTRE')).toBeInTheDocument();
 
     // Verify button exists
     const newSimBtn = screen.getByRole('button', { name: /סימולציה חדשה/i });
@@ -123,7 +125,50 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('נא להזין שם לסימולציה')).toBeInTheDocument();
   });
 
-  it('renders events selection step 2 and tracks amount of selected events', () => {
+  it('uses library categories and reports in events selection step 2', async () => {
+    const categories = [{
+      id: 'category-1',
+      name: 'תפעול',
+      report_count: 2,
+      sub_categories: [{ id: 'subcategory-1', category_id: 'category-1', name: 'התראות', report_count: 1 }],
+    }];
+    const reports = [
+      {
+        id: 'report-1',
+        category_id: 'category-1',
+        sub_category_id: 'subcategory-1',
+        category_name: 'תפעול',
+        sub_category_name: 'התראות',
+        report_title: 'דיווח מספריית התוכן',
+        original_content: 'תוכן הדיווח שנשמר בספרייה',
+        translated_content: null,
+        report_url: 'https://example.com/report-1',
+        city: 'באר שבע',
+        country: 'IL',
+        happened_at: null,
+        collected_at: '2025-01-01T12:00:00.000Z',
+      },
+      {
+        id: 'report-2',
+        category_id: 'category-1',
+        sub_category_id: null,
+        category_name: 'תפעול',
+        sub_category_name: null,
+        report_title: 'דיווח כללי',
+        original_content: 'תוכן נוסף',
+        translated_content: null,
+        report_url: 'https://example.com/report-2',
+        city: null,
+        country: null,
+        happened_at: null,
+        collected_at: '2025-01-02T12:00:00.000Z',
+      },
+    ];
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const payload = String(input).includes('/api/categories/tree') ? categories : reports;
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    }));
+
     const testState = {
       title: 'מטח פתיחה — עוטף עזה',
       description: 'תרגול תרחיש תגובה מהירה',
@@ -151,13 +196,70 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     expect(screen.getByText('ספריית התוכן')).toBeInTheDocument();
 
-    const addButtons = screen.getAllByRole('button', { name: /הוסף לסימולציה/i });
-    expect(addButtons.length).toBeGreaterThan(0);
-    fireEvent.click(addButtons[0]);
+    await waitFor(() => expect(screen.getByText('דיווח מספריית התוכן')).toBeInTheDocument());
+    expect(screen.getAllByText('תפעול').length).toBeGreaterThan(0);
+    expect(screen.getByText('התראות')).toBeInTheDocument();
+    expect(screen.getByText('דיווח כללי')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /התראות/ }));
+    expect(screen.queryByText('דיווח כללי')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('spinbutton', { name: /דקה בסימולציה: דיווח מספריית התוכן/ }), {
+      target: { value: '7' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ }));
 
     // Check count and selection state
-    expect(screen.getAllByText('נבחר לסימולציה').length).toBeGreaterThan(0);
+    expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
+    expect(screen.getByText('דקה 7')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
+  });
+  it('lists saved simulations for the selected system and filters by difficulty', () => {
+    const base = { description: '', events: [], createdAt: '2026-10-19T10:00:00.000Z' };
+    localStorage.setItem('cobra_simulations', JSON.stringify([
+      { ...base, id: 's1', title: 'מטח פתיחה', difficulty: 'קשה' },
+      { ...base, id: 's2', title: 'תרגול בסיסי', difficulty: 'קל', sys: 'spectre' },
+      { ...base, id: 's3', title: 'אירוע ניהול לחימה', difficulty: 'בינוני', sys: 'cm' },
+    ]));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    // SPECTRE is the default system; older saves without sys count as SPECTRE
+    expect(screen.getByText('מטח פתיחה')).toBeInTheDocument();
+    expect(screen.getByText('תרגול בסיסי')).toBeInTheDocument();
+    expect(screen.queryByText('אירוע ניהול לחימה')).not.toBeInTheDocument();
+    expect(screen.getByText('מוצגות 2 מתוך 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'קל' }));
+    expect(screen.queryByText('מטח פתיחה')).not.toBeInTheDocument();
+    expect(screen.getByText('מוצגות 1 מתוך 2')).toBeInTheDocument();
+  });
+
+  it('opens the simulation summary drawer from a card', () => {
+    localStorage.setItem('cobra_simulations', JSON.stringify([{
+      id: 's1',
+      title: 'מטח פתיחה',
+      description: 'תרגול תגובה מהירה',
+      difficulty: 'בינוני',
+      events: [{ id: 'e1', title: 'זיהוי רחפן', category: 'מבצעי', minute: 8, description: 'כלי טיס זעיר' }],
+      createdAt: '2026-10-19T10:00:00.000Z',
+    }]));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'מטח פתיחה' }));
+    const drawer = screen.getByRole('dialog', { name: 'מטח פתיחה' });
+    expect(drawer).toHaveTextContent('אירועים לפי סדר הזרמה · 1');
+    expect(drawer).toHaveTextContent('T+8');
+    expect(drawer).toHaveTextContent('30 דק׳');
   });
 });

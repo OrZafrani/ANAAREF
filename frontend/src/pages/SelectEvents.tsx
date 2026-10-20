@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
@@ -7,7 +7,7 @@ import {
   SimulationEvent,
   Simulation,
 } from '../types/simulation';
-import { PRESET_EVENTS } from '../data/presetEvents';
+import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import {
   CheckIcon,
   ArrowRightIcon,
@@ -29,6 +29,7 @@ const DIFFICULTY_DURATION_MAP: Record<string, number> = {
 export default function SelectEvents() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { sys } = useAppSettings();
 
   const [simData] = useState<SimulationFormData>(() => {
     const passed = location.state as SimulationFormData | undefined;
@@ -51,7 +52,6 @@ export default function SelectEvents() {
   });
 
   const [currentStep, setCurrentStep] = useState<2 | 3>(2);
-  const [availableEvents, setAvailableEvents] = useState<SimulationEvent[]>(PRESET_EVENTS);
   const [selectedEvents, setSelectedEvents] = useState<SimulationEvent[]>([]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -74,7 +74,6 @@ export default function SelectEvents() {
   };
 
   const handleAddCustomEvent = (newEvent: SimulationEvent) => {
-    setAvailableEvents([newEvent, ...availableEvents]);
     setSelectedEvents([...selectedEvents, newEvent]);
   };
 
@@ -89,6 +88,7 @@ export default function SelectEvents() {
       title: simData.title,
       description: simData.description,
       difficulty: simData.difficulty,
+      sys,
       events: selectedEvents,
       createdAt: new Date().toISOString(),
     };
@@ -180,7 +180,7 @@ export default function SelectEvents() {
                       <div className="selected-text">
                         <h5 className="selected-text-title">{evt.title}</h5>
                         <div className="selected-text-sub">
-                          <span>סיווג: {evt.category}</span>
+                          <span>קטגוריה: {evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
                         </div>
@@ -257,17 +257,17 @@ export default function SelectEvents() {
 
               {simData.description && (
                 <div style={{ marginTop: '1.25rem' }}>
-                  <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '0.9rem', color: '#374151' }}>
+                  <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '0.9rem', color: 'var(--ink-2)' }}>
                     תיאור התרחיש:
                   </h4>
-                  <p style={{ margin: 0, fontSize: '0.86rem', color: '#6b7280', lineHeight: 1.5, direction: 'rtl', textAlign: 'start' }}>
+                  <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)', lineHeight: 1.5, direction: 'rtl', textAlign: 'start' }}>
                     {simData.description}
                   </p>
                 </div>
               )}
 
               <div style={{ marginTop: '1.5rem' }}>
-                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.92rem', color: '#111827' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.92rem', color: 'var(--ink)' }}>
                   רשימת אירועי התרחיש ({selectedEvents.length}):
                 </h4>
                 <div className="selected-scroll-list">
@@ -277,7 +277,7 @@ export default function SelectEvents() {
                       <div className="selected-text">
                         <h5 className="selected-text-title">{evt.title}</h5>
                         <div className="selected-text-sub">
-                          <span>סיווג: {evt.category}</span>
+                          <span>קטגוריה: {evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
                         </div>
@@ -316,7 +316,6 @@ export default function SelectEvents() {
       <ContentLibraryModal
         isOpen={isLibraryOpen}
         onClose={() => setIsLibraryOpen(false)}
-        availableEvents={availableEvents}
         selectedIds={selectedIds}
         onToggle={handleToggleEvent}
         onAddCustom={handleAddCustomEvent}
@@ -329,7 +328,7 @@ export default function SelectEvents() {
             <div className="modal-header">
               <div className="modal-header-text">
                 <h2>הסימולציה נשמרה בהצלחה</h2>
-                <p>התרחיש המבצעי הוקם ומוכן להפעלה במערכת SPECTRE</p>
+                <p>התרחיש המבצעי הוקם ומוכן להפעלה במערכת {SYSTEM_INFO[sys].name}</p>
               </div>
               <button
                 type="button"
@@ -346,18 +345,18 @@ export default function SelectEvents() {
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
-                  background: '#ecfdf5',
-                  color: '#059669',
+                  background: 'var(--ok-soft)',
+                  color: 'var(--ok)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid #a7f3d0'
+                  border: '1px solid var(--ok-line)'
                 }}>
                   <CheckIcon size={20} />
                 </span>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#111827' }}>{simData.title}</h4>
-                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--ink)' }}>{simData.title}</h4>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                     רמת קושי: {simData.difficulty} · {selectedEvents.length} אירועים
                   </span>
                 </div>
