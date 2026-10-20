@@ -28,7 +28,6 @@ export interface LibraryTemplate {
   report_url: string;
   report_title: string | null;
   original_language: string | null;
-  matches: string[] | null;
   published_at: string | null;
   happened_at: string | null;
   collected_at: string;

@@ -10,7 +10,7 @@ export interface ReportFilters {
 export async function listLibraryReports(filters: ReportFilters) {
   const result = await db.query(
     `SELECT id, category_id, sub_category_id, platform, account_name, channel_name,
-            report_url, report_title, original_language, matches, published_at,
+            report_url, report_title, original_language, published_at,
             collected_at, threat_level, country, city,
             red_injured_count, red_death_count, blue_injured_count, blue_death_count
      FROM report_templates
@@ -20,8 +20,7 @@ export async function listLibraryReports(filters: ReportFilters) {
             report_title ILIKE '%' || $3 || '%' OR
             original_content ILIKE '%' || $3 || '%' OR
             translated_content ILIKE '%' || $3 || '%' OR
-            city ILIKE '%' || $3 || '%' OR
-            array_to_string(matches, ' ') ILIKE '%' || $3 || '%')
+            city ILIKE '%' || $3 || '%')
      ORDER BY collected_at DESC, id`,
     [filters.categoryId, filters.subCategoryId, filters.search],
   );

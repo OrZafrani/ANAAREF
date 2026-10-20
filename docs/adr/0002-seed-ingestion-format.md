@@ -9,7 +9,7 @@ In COBRA, `report_templates` requires a mandatory `category_id` (FK to `template
 ## Options Considered
 1. **Option A (Extend Library Seed CSV - Chosen)**: Add explicit `category` and `sub_category` string columns to the library seed CSV (`library_reports_seed.csv`). The seed loader parses these columns, ensures the referenced categories/sub-categories exist in the DB (creating them dynamically if absent), and links the templates accordingly.
 2. **Option B (Separate Category Definition File)**: Maintain a standalone `categories.json` alongside the CSV. Reports in CSV reference category names or IDs.
-3. **Option C (Algorithmic / Tag Derivation)**: Automatically infer categories based on trigger `matches` or NLP tags.
+3. **Option C (Algorithmic / Tag Derivation)**: Automatically infer categories from report content or NLP tags.
 
 ## Decision Outcome
 Chosen option: **Option A**. The library seed CSV will explicitly contain `category` (required) and `sub_category` (optional) columns for each report template.

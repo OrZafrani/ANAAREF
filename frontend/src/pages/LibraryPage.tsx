@@ -154,6 +154,7 @@ export default function LibraryPage() {
   const saveCategoryDialog = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!categoryDialog) return;
+    if (categoryDialog.kind === 'category' && categoryDialog.action === 'create') return;
     try {
       if (categoryDialog.kind === 'category') {
         if (categoryDialog.action === 'create') await createCategory(categoryDialog.name.trim());
@@ -332,7 +333,6 @@ export default function LibraryPage() {
                     <div className="card-tags">
                       <span className="badge k-report">דיווח</span>
                       <span className="badge t-orig">{template.is_official ? 'מקור' : 'פתוח'}</span>
-                      {(template.matches?.length ?? 0) > 0 && <span className="badge b-var">{template.matches?.length} ממצאים</span>}
                       <span className="card-category-label">{template.sub_category_name ?? template.category_name}</span>
                     </div>
                     <h3 className="card-title">
@@ -345,7 +345,7 @@ export default function LibraryPage() {
                     <div className="facts">
                       <span className="fact"><PinIcon size={15} /><span className={location ? '' : 'unk'}>{location || 'מיקום לא דווח'}</span></span>
                       <span className="fact"><ClockIcon size={15} />התרחשות {new Date(template.happened_at ?? template.collected_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className={`risk ${risk.cls}`}>סיכון: {risk.label}</span>
+                      <span className={`risk ${risk.cls}`}>דחיפות: {risk.label}</span>
                     </div>
                     <div className="facts">
                       <span className={`cas-side cas-blue ${template.blue_injured_count == null ? 'unk' : ''}`}><i className="side-dot" aria-hidden="true" /><b>כוחותינו:</b> {template.blue_injured_count ?? 'לא ידוע'}</span>
@@ -383,10 +383,11 @@ export default function LibraryPage() {
         <h2 id="category-dialog-title">{categoryDialog.action === 'create' ? categoryDialog.kind === 'category' ? 'קטגוריה חדשה' : 'תת-קטגוריה חדשה' : 'שינוי שם'}</h2>
         <form onSubmit={(event) => void saveCategoryDialog(event)}>
           <label>{categoryDialog.kind === 'category' ? 'שם הקטגוריה' : 'שם תת-הקטגוריה'}<input autoFocus required maxLength={200} value={categoryDialog.name} onChange={(event) => setCategoryDialog({ ...categoryDialog, name: event.target.value })} /></label>
+          {categoryDialog.kind === 'category' && categoryDialog.action === 'create' && <p role="status">יצירת קטגוריה חדשה תהיה זמינה בעתיד.</p>}
           {categoryDialog.kind === 'subcategory' && categoryDialog.action === 'rename' && <label>קטגוריית אב<select required value={categoryDialog.parentId ?? ''} onChange={(event) => setCategoryDialog({ ...categoryDialog, parentId: event.target.value })}>
             {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select></label>}
-          <div className="modal-actions"><button className="button button-primary" type="submit">שמירה</button><button className="button button-quiet" type="button" onClick={() => setCategoryDialog(null)}>ביטול</button></div>
+          <div className="modal-actions"><button className="button button-primary" type="submit" disabled={categoryDialog.kind === 'category' && categoryDialog.action === 'create'}>שמירה</button><button className="button button-quiet" type="button" onClick={() => setCategoryDialog(null)}>ביטול</button></div>
         </form>
       </section></div>}
 
