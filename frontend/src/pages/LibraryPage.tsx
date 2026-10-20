@@ -148,7 +148,6 @@ export default function LibraryPage() {
   const saveCategoryDialog = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!categoryDialog) return;
-    if (categoryDialog.kind === 'category' && categoryDialog.action === 'create') return;
     try {
       if (categoryDialog.kind === 'category') {
         if (categoryDialog.action === 'create') await createCategory(categoryDialog.name.trim());
@@ -257,7 +256,7 @@ export default function LibraryPage() {
             <div className="tree-group">
               <div className="tree-panel-heading">
                 <h2>קטגוריות</h2>
-                {canWrite && <button className="icon-btn" type="button" aria-label="הוספת קטגוריה" title="הוספת קטגוריה" onClick={() => openCategoryDialog({ kind: 'category', action: 'create', name: '' })}><PlusIcon size={16} /></button>}
+                {/* {canWrite && <button className="icon-btn" type="button" aria-label="הוספת קטגוריה" title="הוספת קטגוריה" onClick={() => openCategoryDialog({ kind: 'category', action: 'create', name: '' })}><PlusIcon size={16} /></button>} */}
               </div>
               <button className={`tree-row tree-all ${!selection.categoryId ? 'is-selected' : ''}`} type="button" onClick={() => chooseCategory(null)}>
                 <span>כל התבניות</span><span className="tree-count mono">{templates.length}</span>
@@ -376,7 +375,10 @@ export default function LibraryPage() {
       {contextMenu && <>
         <button className="context-dismiss" aria-label="סגירת תפריט" type="button" onClick={() => setContextMenu(null)} />
         <div className="context-menu" role="menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-          {contextMenu.kind === 'blank' ? <button type="button" role="menuitem" onClick={() => void handleContextAction('add-category')}>＋ יצירת קטגוריה</button> : <>
+          {contextMenu.kind === 'blank' ? <>
+            {/* Temporarily hide top-level category creation; keep the action available for later. */}
+            {/* <button type="button" role="menuitem" onClick={() => void handleContextAction('add-category')}>＋ יצירת קטגוריה</button> */}
+          </> : <>
             {contextMenu.kind === 'category' && <button type="button" role="menuitem" onClick={() => void handleContextAction('add-subcategory')}>＋ הוספת תת-קטגוריה</button>}
             <button type="button" role="menuitem" onClick={() => void handleContextAction('rename')}>שינוי שם</button>
             <button className="menu-danger" type="button" role="menuitem" disabled={contextDeleteDisabled} title={contextDeleteDisabled ? 'ניתן למחוק רק תיקייה ריקה' : undefined} onClick={() => void handleContextAction('delete')}>מחיקה</button>
@@ -391,11 +393,10 @@ export default function LibraryPage() {
         <h2 id="category-dialog-title">{categoryDialog.action === 'create' ? categoryDialog.kind === 'category' ? 'קטגוריה חדשה' : 'תת-קטגוריה חדשה' : 'שינוי שם'}</h2>
         <form onSubmit={(event) => void saveCategoryDialog(event)}>
           <label>{categoryDialog.kind === 'category' ? 'שם הקטגוריה' : 'שם תת-הקטגוריה'}<input autoFocus required maxLength={200} value={categoryDialog.name} onChange={(event) => setCategoryDialog({ ...categoryDialog, name: event.target.value })} /></label>
-          {categoryDialog.kind === 'category' && categoryDialog.action === 'create' && <p role="status">יצירת קטגוריה חדשה תהיה זמינה בעתיד.</p>}
           {categoryDialog.kind === 'subcategory' && categoryDialog.action === 'rename' && <label>קטגוריית אב<select required value={categoryDialog.parentId ?? ''} onChange={(event) => setCategoryDialog({ ...categoryDialog, parentId: event.target.value })}>
             {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select></label>}
-          <div className="modal-actions"><button className="button button-primary" type="submit" disabled={categoryDialog.kind === 'category' && categoryDialog.action === 'create'}>שמירה</button><button className="button button-quiet" type="button" onClick={() => setCategoryDialog(null)}>ביטול</button></div>
+          <div className="modal-actions"><button className="button button-primary" type="submit">שמירה</button><button className="button button-quiet" type="button" onClick={() => setCategoryDialog(null)}>ביטול</button></div>
         </form>
       </section></div>}
 
