@@ -1,17 +1,15 @@
 import { db } from '../db.js';
 import { ConflictError } from '../lib/validate.js';
-import { REQUIRED_REPORT_FIELDS, TARGET_LANGUAGE } from './reportMessage.js';
-import type { Cursor, DispatchRow, RunStatus, SchedulerStore, SimulationForStart, SimulationRun } from './types.js';
+import type { Cursor, DispatchRow, RunStatus, SchedulerStore, SimulationForStart, SimulationRun, SimulationRunSummary } from './types.js';
 
 const UTC_NOW = `(now() AT TIME ZONE 'utc')`;
 
-// Same rule as missingRequiredFields() in reportMessage.ts, over all of a simulation's reports.
-// Built from constants, not user input.
-const MISSING_FIELDS_SQL = `array_remove(ARRAY[
-  ${REQUIRED_REPORT_FIELDS.map((field) => `CASE WHEN bool_or(r.${field} IS NULL) THEN '${field}' END`).join(',\n  ')},
-  CASE WHEN bool_or(r.translated_content IS NULL AND r.original_language IS DISTINCT FROM '${TARGET_LANGUAGE}')
-       THEN 'translated_content' END
-], NULL)`;
+// A run with its simulation's details and total report count, for dashboards.
+const RUN_SUMMARY_SELECT = `
+  SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s,
+         (SELECT count(*)::int FROM report_in_simulation ris WHERE ris.simulation_id = r.simulation_id) AS report_count
+  FROM simulation_runs r
+  JOIN simulations s ON s.id = r.simulation_id`;
 
 // GREATEST keeps completed_at >= started_at (a CHECK) if the clock moved back.
 const FINISH_SET = `status = $2, completed_at = GREATEST(${UTC_NOW}, started_at), failure_reason = $3`;
@@ -27,8 +25,7 @@ export const runRepository: SchedulerStore = {
     const result = await db.query<SimulationForStart>(
       `SELECT s.id, s.reality_id, s.target_system,
               count(ris.report_id)::int AS report_count,
-              count(ris.report_id) FILTER (WHERE r.reality_id <> s.reality_id)::int AS other_reality_report_count,
-              ${MISSING_FIELDS_SQL} AS missing_fields
+              count(ris.report_id) FILTER (WHERE r.reality_id <> s.reality_id)::int AS other_reality_report_count
        FROM simulations s
        LEFT JOIN report_in_simulation ris ON ris.simulation_id = s.id
        LEFT JOIN reports r ON r.report_id = ris.report_id
@@ -47,8 +44,8 @@ export const runRepository: SchedulerStore = {
       );
       return result.rows[0];
     } catch (error) {
-      if (isUniqueViolation(error, 'simulation_runs_one_started_per_simulation_key')) {
-        throw new ConflictError('Simulation already has a started run');
+      if (isUniqueViolation(error, 'simulation_runs_one_started_key')) {
+        throw new ConflictError('Another simulation already has a started run');
       }
       throw error;
     }
@@ -58,6 +55,26 @@ export const runRepository: SchedulerStore = {
     const result = await db.query<SimulationRun>(
       `SELECT * FROM simulation_runs WHERE id = $1 AND simulation_id = $2`,
       [runId, simulationId],
+    );
+    return result.rows[0] ?? null;
+  },
+
+  async listRuns(simulationId) {
+    const result = await db.query<SimulationRunSummary>(
+      `${RUN_SUMMARY_SELECT}
+       WHERE ($1::uuid IS NULL OR r.simulation_id = $1)
+       ORDER BY r.started_at DESC, r.id DESC`,
+      [simulationId ?? null],
+    );
+    return result.rows;
+  },
+
+  async getStartedRun() {
+    const result = await db.query<SimulationRunSummary>(
+      `${RUN_SUMMARY_SELECT}
+       WHERE r.status = 'started'
+       ORDER BY r.started_at DESC, r.id DESC
+       LIMIT 1`,
     );
     return result.rows[0] ?? null;
   },

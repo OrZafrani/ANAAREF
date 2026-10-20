@@ -26,6 +26,16 @@ export const config = {
     producerRetries: intFromEnv('KAFKA_PRODUCER_RETRIES', 5),
     // How long one send keeps retrying before it fails (and fails the run).
     deliveryTimeoutMs: intFromEnv('KAFKA_DELIVERY_TIMEOUT_MS', 60_000, 1),
+    // Optional auth. Leave KAFKA_SASL_USERNAME unset for a plaintext local broker.
+    saslUsername: process.env.KAFKA_SASL_USERNAME?.trim() || undefined,
+    saslPassword: process.env.KAFKA_SASL_PASSWORD,
+    saslMechanism: (process.env.KAFKA_SASL_MECHANISM?.trim().toLowerCase() || 'scram-sha-512') as
+      | 'plain'
+      | 'scram-sha-256'
+      | 'scram-sha-512',
+    // Set KAFKA_SSL=true (or give a CA file) to use TLS.
+    ssl: process.env.KAFKA_SSL === 'true' || Boolean(process.env.KAFKA_SSL_CA_LOCATION?.trim()),
+    sslCaLocation: process.env.KAFKA_SSL_CA_LOCATION?.trim() || undefined,
   },
   scheduler: {
     batchSize: intFromEnv('SCHEDULER_BATCH_SIZE', 100, 1),

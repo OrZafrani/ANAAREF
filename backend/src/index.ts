@@ -11,7 +11,7 @@ import { apiErrorHandler } from './lib/validate.js';
 import { categoryRoutes, subCategoryRoutes } from './routes/categoryRoutes.js';
 import { libraryRoutes } from './routes/libraryRoutes.js';
 import simulationsRouter from './routes/simulations.router.js';
-import { createRunRoutes } from './routes/runRoutes.js';
+import { createRunCollectionRoutes, createRunRoutes } from './routes/runRoutes.js';
 import { templateRoutes } from './routes/templateRoutes.js';
 import { createScheduler } from './scheduler/index.js';
 import { systemClock } from './scheduler/clock.js';
@@ -74,7 +74,6 @@ app.use(cors());
 app.use('/api/simulations', express.json({ limit: '10mb' }));
 app.use(express.json());
 app.use(morgan('dev'));
-app.use('/api/simulations', simulationsRouter);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/sub-categories', subCategoryRoutes);
 app.use('/api/library', libraryRoutes);
@@ -101,7 +100,9 @@ const scheduler = createScheduler({
   clock: systemClock,
   ...config.scheduler,
 });
+app.use('/api/simulations/runs', createRunCollectionRoutes(scheduler));
 app.use('/api/simulations/:simulationId/runs', createRunRoutes(scheduler));
+app.use('/api/simulations', simulationsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found.' });

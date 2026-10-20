@@ -7,11 +7,12 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "build": "tsc --noEmit",
-    "migrate": "node ./migrate.cjs up",
-    "migrate:down": "node ./migrate.cjs down",
+    "migrate": "node ./migrate.mjs up",
+    "migrate:down": "node ./migrate.mjs down",
     "migrate:create": "node-pg-migrate create -m migrations -j sql --migration-filename-format index",
     "seed:library": "tsx src/seed/categorySeedLoader.ts",
     "kafka:consume": "tsx src/tools/mockConsumer.ts",
+    "kafka:check": "tsx src/tools/kafkaCheck.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -32,7 +33,6 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.23.1",
-    "ajv": "^8.20.0",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
     "vitest": "^5.0.5"

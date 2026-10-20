@@ -70,12 +70,6 @@ export function createScheduler(deps: SchedulerDeps) {
           422,
         );
       }
-      if (simulation.missing_fields.length > 0) {
-        throw new ApiError(
-          `Some of the simulation's reports are missing fields ENRICHED_REPORT requires: ${simulation.missing_fields.join(', ')}`,
-          422,
-        );
-      }
 
       const run = await store.createRun(simulationId);
       launch(run);
@@ -102,6 +96,14 @@ export function createScheduler(deps: SchedulerDeps) {
       const run = await store.getRun(simulationId, runId);
       if (!run) throw new NotFoundError('Run not found');
       return run;
+    },
+
+    async listRuns(simulationId?: string) {
+      return store.listRuns(simulationId);
+    },
+
+    async getStartedRun() {
+      return store.getStartedRun();
     },
 
     /**
