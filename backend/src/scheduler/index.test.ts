@@ -28,7 +28,7 @@ const startedRun = (overrides: Partial<SimulationRun> = {}): SimulationRun => ({
 });
 
 const runnableSimulation: SimulationForStart = {
-  id: 'sim-1', reality_id: 1, target_system: 'specter', report_count: 3, other_reality_report_count: 0, missing_fields: [],
+  id: 'sim-1', reality_id: 1, target_system: 'specter', report_count: 3, other_reality_report_count: 0,
 };
 
 function makeScheduler(store: Partial<SchedulerStore>) {
@@ -76,7 +76,6 @@ describe('scheduler.startRun', () => {
     ['a simulation outside reality 1', { ...runnableSimulation, reality_id: 2 }, 422],
     ['a simulation with no reports', { ...runnableSimulation, report_count: 0 }, 422],
     ['a simulation with reports in another reality', { ...runnableSimulation, other_reality_report_count: 1 }, 422],
-    ['a simulation with reports missing required fields', { ...runnableSimulation, missing_fields: ['city'] }, 422],
   ])('rejects %s', async (_case, simulation, statusCode) => {
     const { scheduler, store } = makeScheduler({ getSimulationForStart: vi.fn(async () => simulation) });
     await expect(scheduler.startRun('sim-1')).rejects.toMatchObject({ statusCode });
