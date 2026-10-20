@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
@@ -27,6 +27,78 @@ const DIFFICULTY_DURATION_MAP: Record<string, number> = {
 
 function simDurationCap(difficulty: string): number {
   return DIFFICULTY_DURATION_MAP[difficulty] ?? 30;
+}
+
+function nextLibraryMinute(events: SimulationEvent[], duration: number): number | null {
+  const libraryEvents = events.filter((event) => event.reportUrl);
+  const occupiedMinutes = new Set(libraryEvents.map((event) => event.minute));
+  for (let minute = (libraryEvents.length + 1) * 2; minute <= duration; minute += 2) {
+    if (!occupiedMinutes.has(minute)) return minute;
+  }
+  return null;
+}
+
+function timelineMinuteAtPosition(clientX: number, left: number, width: number, duration: number): number | null {
+  if (width === 0) return null;
+  const position = Math.min(1, Math.max(0, (clientX - left) / width));
+  return Math.min(duration, Math.max(1, Math.round((1 - position) * duration)));
+}
+
+function SelectedEventRow({
+  event,
+  index,
+  duration,
+  isActive,
+  onMinuteChange,
+  onRemove,
+}: {
+  event: SimulationEvent;
+  index: number;
+  duration: number;
+  isActive: boolean;
+  onMinuteChange: (id: string, minute: number) => void;
+  onRemove?: (id: string) => void;
+}) {
+  return (
+    <div
+      className={`selected-item-row${isActive ? ' is-active' : ''}`}
+      id={`selected-event-${event.id}`}
+      tabIndex={-1}
+    >
+      <span className="selected-seq">{index + 1}</span>
+      <div className="selected-text">
+        <h5 className="selected-text-title">{event.title}</h5>
+        <div className="selected-text-sub">
+          <span>קטגוריה: {event.categoryName ?? event.category}{event.subCategory ? ` · ${event.subCategory}` : ''}</span>
+          <span>•</span>
+          <label className="selected-minute-control">
+            דקה בסימולציה:
+            <input
+              type="number"
+              min="1"
+              max={duration}
+              step="1"
+              value={event.minute}
+              aria-label={`דקת סימולציה עבור ${event.title}`}
+              onChange={(changeEvent) => onMinuteChange(event.id, Number(changeEvent.currentTarget.value))}
+            />
+          </label>
+          <span>•</span>
+          <span>דחיפות: {getUrgency(event.threatLevel).label}</span>
+        </div>
+      </div>
+      {onRemove && (
+        <button
+          type="button"
+          className="btn-remove-item"
+          onClick={() => onRemove(event.id)}
+          title="הסר אירוע מהסימולציה"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function SelectEvents() {
@@ -64,6 +136,9 @@ export default function SelectEvents() {
   const [libraryCategoryId, setLibraryCategoryId] = useState<string>('');
   const [librarySubCategoryId, setLibrarySubCategoryId] = useState<string>('');
   const [selectedEvents, setSelectedEvents] = useState<SimulationEvent[]>([]);
+  const [activeTimelineEventId, setActiveTimelineEventId] = useState<string | null>(null);
+  const [pendingTimelineMinute, setPendingTimelineMinute] = useState<number | null>(null);
+  const [selectionError, setSelectionError] = useState('');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
   const subCategories = useMemo(() => {
@@ -86,28 +161,30 @@ export default function SelectEvents() {
   };
 
   // DB-driven library: every template in ספריית התוכן is a candidate event.
-  // minute defaults to an even spread across the simulation duration.
   const availableEvents: SimulationEvent[] = useMemo(() => {
     const cap = simDurationCap(simData.difficulty);
-    const count = Math.max(templates.length, 1);
-    return templates.map((template, index) => ({
-      id: template.id,
-      title: template.report_title || 'תבנית ללא כותרת',
-      category: toEventCategory(template),
-      categoryName: template.category_name ?? undefined,
-      categoryId: template.category_id,
-      subCategory: template.sub_category_name ?? undefined,
-      subCategoryId: template.sub_category_id,
-      reportUrl: template.report_url,
-      matches: template.matches ?? undefined,
-      city: template.city,
-      country: template.country,
-      threatLevel: template.threat_level,
-      minute: Math.min(Math.max(Math.round(((index + 1) / count) * cap) || 1, 1), cap),
-      description: template.original_content?.slice(0, 500) || template.report_title || 'דיווח מספריית התוכן.',
-    }));
+    const nextMinute = nextLibraryMinute(selectedEvents, cap);
+    return templates.map((template) => {
+      const selectedEvent = selectedEvents.find((event) => event.id === template.id);
+      return {
+        id: template.id,
+        title: template.report_title || 'תבנית ללא כותרת',
+        category: toEventCategory(template),
+        categoryName: template.category_name ?? undefined,
+        categoryId: template.category_id,
+        subCategory: template.sub_category_name ?? undefined,
+        subCategoryId: template.sub_category_id,
+        reportUrl: template.report_url,
+        matches: template.matches ?? undefined,
+        city: template.city,
+        country: template.country,
+        threatLevel: template.threat_level,
+        minute: selectedEvent?.minute ?? nextMinute ?? cap,
+        description: template.original_content?.slice(0, 500) || template.report_title || 'דיווח מספריית התוכן.',
+      };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, simData.difficulty]);
+  }, [templates, selectedEvents, simData.difficulty]);
 
   // Load category tree once for the filter dropdowns.
   useEffect(() => {
@@ -159,23 +236,90 @@ export default function SelectEvents() {
   const handleToggleEvent = (event: SimulationEvent) => {
     if (selectedIds.has(event.id)) {
       setSelectedEvents(selectedEvents.filter((e) => e.id !== event.id));
+      setSelectionError('');
     } else {
-      setSelectedEvents([...selectedEvents, event]);
+      const minute = pendingTimelineMinute ?? (event.reportUrl ? nextLibraryMinute(selectedEvents, simDuration) : event.minute);
+      if (minute === null) {
+        setSelectionError(`לא ניתן להוסיף דיווח נוסף: משך הסימולציה מאפשר עד ${Math.floor(simDuration / 2)} דיווחים במרווחים של שתי דקות.`);
+        return;
+      }
+      if (pendingTimelineMinute !== null && selectedEvents.some((selectedEvent) => selectedEvent.minute === minute)) {
+        setSelectionError(`כבר קיים אירוע בדקה ${minute}. לחצו על מקום פנוי אחר בציר הזמן.`);
+        return;
+      }
+      setSelectedEvents([...selectedEvents, { ...event, minute }]);
+      setSelectionError('');
+      if (pendingTimelineMinute !== null) {
+        setActiveTimelineEventId(event.id);
+        setPendingTimelineMinute(null);
+        setIsLibraryOpen(false);
+      }
     }
   };
 
   const handleRemoveSelected = (id: string) => {
     setSelectedEvents(selectedEvents.filter((e) => e.id !== id));
+    setSelectionError('');
   };
 
   const handleAddCustomEvent = (newEvent: SimulationEvent) => {
-    setSelectedEvents([...selectedEvents, newEvent]);
+    const event = pendingTimelineMinute === null
+      ? newEvent
+      : { ...newEvent, minute: pendingTimelineMinute };
+    setSelectedEvents([...selectedEvents, event]);
+    setSelectionError('');
+    if (pendingTimelineMinute !== null) {
+      setActiveTimelineEventId(event.id);
+      setPendingTimelineMinute(null);
+      setIsLibraryOpen(false);
+    }
   };
 
   const handleAddAllFromLibrary = () => {
     const existing = new Set(selectedEvents.map((e) => e.id));
     const missing = availableEvents.filter((e) => !existing.has(e.id));
-    if (missing.length > 0) setSelectedEvents([...selectedEvents, ...missing]);
+    const addedEvents: SimulationEvent[] = [];
+    for (const event of missing) {
+      const minute = nextLibraryMinute([...selectedEvents, ...addedEvents], simDuration);
+      if (minute === null) break;
+      addedEvents.push({ ...event, minute });
+    }
+    if (addedEvents.length > 0) {
+      setSelectedEvents([...selectedEvents, ...addedEvents]);
+    }
+    setSelectionError(addedEvents.length < missing.length
+      ? `לא ניתן להוסיף את כל הדיווחים. נוספו ${addedEvents.length} מתוך ${missing.length}; משך הסימולציה מאפשר עד ${Math.floor(simDuration / 2)} דיווחים במרווחים של שתי דקות.`
+      : '');
+  };
+
+  const handleMinuteChange = (id: string, minute: number) => {
+    if (!Number.isInteger(minute) || minute < 1 || minute > simDuration) return;
+    setSelectedEvents(selectedEvents.map((event) => event.id === id ? { ...event, minute } : event));
+  };
+
+  const handleTimelineEventClick = (id: string, event: MouseEvent<HTMLButtonElement>) => {
+    const track = event.currentTarget.closest('.event-timeline-track');
+    if (event.detail !== 0 && track) {
+      const { left, width } = track.getBoundingClientRect();
+      const clickedMinute = timelineMinuteAtPosition(event.clientX, left, width, simDuration);
+      const selectedEvent = selectedEvents.find((selectedEvent) => selectedEvent.id === id);
+      if (clickedMinute !== null && clickedMinute !== selectedEvent?.minute) return;
+    }
+    setActiveTimelineEventId(id);
+    document.getElementById(`selected-event-${id}`)?.scrollIntoView?.({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  };
+
+  const handleEmptyTimelineClick = (event: MouseEvent<HTMLDivElement>) => {
+    const { left, width } = event.currentTarget.getBoundingClientRect();
+    const minute = timelineMinuteAtPosition(event.clientX, left, width, simDuration);
+    if (minute === null) return;
+    if (selectedEvents.some((selectedEvent) => selectedEvent.minute === minute)) return;
+    setPendingTimelineMinute(minute);
+    setSelectionError('');
+    setIsLibraryOpen(true);
   };
 
   const handleSaveSimulation = async () => {
@@ -309,6 +453,53 @@ export default function SelectEvents() {
 
               <div className="builder-card-divider" />
 
+              <section className="event-timeline" aria-labelledby="event-timeline-title">
+                <h4 className="event-timeline-title" id="event-timeline-title">ציר זמן של אירועי הסימולציה</h4>
+                {selectedEvents.length === 0 && (
+                  <p className="event-timeline-empty">לחצו על מקום פנוי בציר כדי להוסיף אירוע בדקה הזו.</p>
+                )}
+                <div className="event-timeline-scale">
+                  <div className="event-timeline-track" onClick={handleEmptyTimelineClick}>
+                    <div className="event-timeline-axis" aria-hidden="true" />
+                    <ol className="event-timeline-list" aria-label="אירועים לפי זמן בסימולציה">
+                      {[...selectedEvents]
+                        .sort((left, right) => left.minute - right.minute)
+                        .map((event) => (
+                          <li
+                            className="event-timeline-item"
+                            key={event.id}
+                            style={{ right: `${(event.minute / simDuration) * 100}%` }}
+                          >
+                            <button
+                              type="button"
+                              className={`event-timeline-point urgency-${getUrgency(event.threatLevel).level}${activeTimelineEventId === event.id ? ' is-active' : ''}`}
+                              aria-label={`מעבר לאירוע ${event.title}, דקה ${event.minute}`}
+                              aria-pressed={activeTimelineEventId === event.id}
+                              title={`${event.title} · דקה ${event.minute}`}
+                              onClick={(clickEvent) => handleTimelineEventClick(event.id, clickEvent)}
+                            >
+                              <span className="event-timeline-marker" aria-hidden="true" />
+                            </button>
+                          </li>
+                        ))}
+                    </ol>
+                    <div className="event-timeline-ticks" aria-hidden="true">
+                      {[...new Set(selectedEvents.map((event) => event.minute))]
+                        .sort((left, right) => left - right)
+                        .map((minute) => (
+                          <span
+                            className="event-timeline-tick"
+                            key={minute}
+                            style={{ right: `${(minute / simDuration) * 100}%` }}
+                          >
+                            {minute}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
               {selectedEvents.length === 0 ? (
                 <div className="content-empty-state">
                   <span className="content-empty-icon">
@@ -322,31 +513,22 @@ export default function SelectEvents() {
                   </p>
                 </div>
               ) : (
-                <div className="selected-scroll-list content-selected-list">
-                  {selectedEvents.map((evt, idx) => (
-                    <div key={evt.id} className="selected-item-row">
-                      <span className="selected-seq">{idx + 1}</span>
-                      <div className="selected-text">
-                        <h5 className="selected-text-title">{evt.title}</h5>
-                        <div className="selected-text-sub">
-                          <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
-                          <span>•</span>
-                          <span>דקה {evt.minute}</span>
-                          <span>•</span>
-                          <span>דחיפות: {getUrgency(evt.threatLevel).label}</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-remove-item"
-                        onClick={() => handleRemoveSelected(evt.id)}
-                        title="הסר אירוע מהסימולציה"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  {selectionError && <p className="builder-error-msg" role="alert">{selectionError}</p>}
+                  <div className="selected-scroll-list content-selected-list">
+                    {selectedEvents.map((event, index) => (
+                      <SelectedEventRow
+                        key={event.id}
+                        event={event}
+                        index={index}
+                        duration={simDuration}
+                        isActive={activeTimelineEventId === event.id}
+                        onMinuteChange={handleMinuteChange}
+                        onRemove={handleRemoveSelected}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </section>
 
@@ -422,20 +604,15 @@ export default function SelectEvents() {
                   רשימת אירועי התרחיש ({selectedEvents.length}):
                 </h4>
                 <div className="selected-scroll-list">
-                  {selectedEvents.map((evt, idx) => (
-                    <div key={evt.id} className="selected-item-row">
-                      <span className="selected-seq">{idx + 1}</span>
-                      <div className="selected-text">
-                        <h5 className="selected-text-title">{evt.title}</h5>
-                        <div className="selected-text-sub">
-                          <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
-                          <span>•</span>
-                          <span>דקה {evt.minute}</span>
-                          <span>•</span>
-                          <span>דחיפות: {getUrgency(evt.threatLevel).label}</span>
-                        </div>
-                      </div>
-                    </div>
+                  {selectedEvents.map((event, index) => (
+                    <SelectedEventRow
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      duration={simDuration}
+                      isActive={activeTimelineEventId === event.id}
+                      onMinuteChange={handleMinuteChange}
+                    />
                   ))}
                 </div>
               </div>
@@ -468,7 +645,10 @@ export default function SelectEvents() {
 
       <ContentLibraryModal
         isOpen={isLibraryOpen}
-        onClose={() => setIsLibraryOpen(false)}
+        onClose={() => {
+          setIsLibraryOpen(false);
+          setPendingTimelineMinute(null);
+        }}
         categories={categories}
         availableEvents={availableEvents}
         selectedIds={selectedIds}
@@ -477,6 +657,7 @@ export default function SelectEvents() {
         isLoading={isLoadingLibrary}
         error={libraryError}
         totalCount={availableEvents.length}
+        selectionMinute={pendingTimelineMinute}
       />
 
       {/* Success Modal */}

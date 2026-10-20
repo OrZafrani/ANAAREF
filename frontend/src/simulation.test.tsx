@@ -274,12 +274,12 @@ describe('Simulation Flow - Mockup Alignment', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /התראות/ }));
     expect(screen.queryByText('דיווח כללי')).not.toBeInTheDocument();
-    expect(screen.getByText(/דקה בסימולציה: 23/)).toBeInTheDocument();
+    expect(screen.getByText(/דקה בסימולציה: 2/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
 
     // Check count and selection state
     expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
-    expect(screen.getByText('דקה 23')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' })).toHaveValue(2);
     expect(screen.getAllByText('דחיפות: קריטי')).toHaveLength(2);
     const reportCheckbox = screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ });
     expect(reportCheckbox).toBeChecked();
@@ -287,12 +287,58 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByRole('checkbox', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ })).not.toBeChecked();
     fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
     expect(screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' }), { target: { value: '6' } });
+    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' })).toHaveValue(6);
+
+    const timelineTrack = document.querySelector('.event-timeline-track');
+    expect(timelineTrack).not.toBeNull();
+    Object.defineProperty(timelineTrack, 'getBoundingClientRect', {
+      value: () => ({ left: 0, right: 100, width: 100, top: 0, bottom: 40, height: 40, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'סגור חלון' }));
+    fireEvent.click(timelineTrack!, { clientX: 78 });
+    expect(screen.getByText('בחרו דיווח להוספה בדקה 10')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /כל הדיווחים/ }));
+    expect(screen.getByText(/דקה בסימולציה: 4/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('תוכן נוסף'));
+    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח כללי' })).toHaveValue(10);
+
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
     expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' })).toHaveValue(6);
+    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח כללי' })).toHaveValue(10);
+    const timelineElement = screen.getByRole('list', { name: 'אירועים לפי זמן בסימולציה' });
+    const timeline = within(timelineElement);
+    const timelineEvents = timeline.getAllByRole('listitem');
+    expect(timelineEvents).toHaveLength(2);
+    expect(within(timelineEvents[0]).getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' })).toHaveClass('urgency-critical');
+    expect(within(timelineEvents[1]).getByRole('button', { name: 'מעבר לאירוע דיווח כללי, דקה 10' })).toBeInTheDocument();
+    expect(timelineEvents[0]).toHaveStyle({ right: `${(6 / 45) * 100}%` });
+    expect(timelineEvents[1]).toHaveStyle({ right: `${(10 / 45) * 100}%` });
+    expect(timelineEvents[0].textContent).toBe('');
+    expect(timelineEvents[1].textContent).toBe('');
+    const timelineSection = within(screen.getByRole('region', { name: 'ציר זמן של אירועי הסימולציה' }));
+    const timeTicks = timelineSection.getAllByText(/^\d+$/);
+    expect(timeTicks.map((tick) => tick.textContent)).toEqual(['6', '10']);
+    expect(timeTicks[0]).toHaveStyle({ right: `${(6 / 45) * 100}%` });
+    expect(timeTicks[1]).toHaveStyle({ right: `${(10 / 45) * 100}%` });
+    const selectedReportRow = document.getElementById('selected-event-report-1');
+    const scrollIntoView = vi.fn();
+    expect(selectedReportRow).not.toBeNull();
+    Object.defineProperty(selectedReportRow, 'scrollIntoView', { value: scrollIntoView });
+    fireEvent.click(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' })).toHaveAttribute('aria-pressed', 'true');
+    expect(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח כללי, דקה 10' })).toHaveAttribute('aria-pressed', 'false');
+    expect(selectedReportRow).toHaveClass('is-active');
+    const otherEventRows = Array.from(document.querySelectorAll('.selected-item-row'))
+      .filter((row) => row !== selectedReportRow);
+    expect(otherEventRows.every((row) => !row.classList.contains('is-active'))).toBe(true);
 
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
-    expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
+    expect(screen.getAllByText('דחיפות: קריטי').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('spinbutton')).toHaveLength(2);
   });
   it('saves a simulation and selected events through the API', async () => {
     const createdAt = '2026-10-19T10:00:00.000Z';
@@ -335,6 +381,10 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(await screen.findByText(/דיווחים זמינים מספריית התוכן/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     fireEvent.click(await screen.findByRole('checkbox', { name: /הוסף לסימולציה:/i }));
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור זיהוי תנועה חשודה בגדר המערכת' }),
+      { target: { value: '7' } },
+    );
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
     fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
 
@@ -347,6 +397,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     const requestBody = JSON.parse(String(postCall?.[1]?.body));
     expect(requestBody.events).toHaveLength(1);
     expect(requestBody.events[0].title).toBe('זיהוי תנועה חשודה בגדר המערכת');
+    expect(requestBody.events[0].minute).toBe(7);
     expect(requestBody.sys).toBe('spectre');
     expect(localStorage.getItem('cobra_simulations')).toBeNull();
   });

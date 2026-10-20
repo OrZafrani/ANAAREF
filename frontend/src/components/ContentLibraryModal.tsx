@@ -15,6 +15,7 @@ interface ContentLibraryModalProps {
   isLoading: boolean;
   error: string;
   totalCount: number;
+  selectionMinute?: number | null;
 }
 
 export default function ContentLibraryModal({
@@ -28,6 +29,7 @@ export default function ContentLibraryModal({
   isLoading,
   error,
   totalCount,
+  selectionMinute = null,
 }: ContentLibraryModalProps) {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -102,7 +104,9 @@ export default function ContentLibraryModal({
           <div className="library-modal-header-text">
             <h2>ספריית התוכן</h2>
             <p>
-              {typeof totalCount === 'number'
+              {selectionMinute !== null
+                ? `בחרו דיווח להוספה בדקה ${selectionMinute}`
+                : typeof totalCount === 'number'
                 ? `${totalCount} דיווחים מהמאגר (${filteredEvents.length} מוצגים)`
                 : 'בחרו דיווח מהקטגוריות והתיקיות בספריית התוכן'}
             </p>
