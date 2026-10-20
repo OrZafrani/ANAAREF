@@ -391,16 +391,6 @@ export default function Home() {
                     <div className="sc-actions">
                       <button
                         type="button"
-                        className="icon-btn edit-sim-btn"
-                        onClick={() => navigate(`/simulations/${encodeURIComponent(sim.id)}/edit/events`)}
-                        aria-label={`עריכת הסימולציה ${sim.title}`}
-                        title="עריכת סימולציה"
-                      >
-                        <PencilIcon size={16} />
-                        <span>עריכה</span>
-                      </button>
-                      <button
-                        type="button"
                         className="btn btn-run btn-sm run-sim-btn"
                         onClick={() => handleStartRun(sim)}
                         // aria-disabled, not disabled: a click on a blocked button explains why.
@@ -410,6 +400,16 @@ export default function Home() {
                       >
                         <PlayCircleIcon size={16} />
                         <span>{pendingRunAction === `start:${sim.id}` ? 'מפעיל…' : 'הרצה'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn edit-sim-btn"
+                        onClick={() => navigate(`/simulations/${encodeURIComponent(sim.id)}/edit/events`)}
+                        aria-label={`עריכת הסימולציה ${sim.title}`}
+                        title="עריכת סימולציה"
+                      >
+                        <PencilIcon size={16} />
+                        <span>עריכה</span>
                       </button>
                       <button
                         type="button"
