@@ -1,8 +1,17 @@
 import { db } from '../db.js';
 import { ConflictError } from '../lib/validate.js';
+import { REQUIRED_REPORT_FIELDS, TARGET_LANGUAGE } from './reportMessage.js';
 import type { Cursor, DispatchRow, RunStatus, SchedulerStore, SimulationForStart, SimulationRun } from './types.js';
 
 const UTC_NOW = `(now() AT TIME ZONE 'utc')`;
+
+// Same rule as missingRequiredFields() in reportMessage.ts, over all of a simulation's reports.
+// Built from constants, not user input.
+const MISSING_FIELDS_SQL = `array_remove(ARRAY[
+  ${REQUIRED_REPORT_FIELDS.map((field) => `CASE WHEN bool_or(r.${field} IS NULL) THEN '${field}' END`).join(',\n  ')},
+  CASE WHEN bool_or(r.translated_content IS NULL AND r.original_language IS DISTINCT FROM '${TARGET_LANGUAGE}')
+       THEN 'translated_content' END
+], NULL)`;
 
 // GREATEST keeps completed_at >= started_at (a CHECK) if the clock moved back.
 const FINISH_SET = `status = $2, completed_at = GREATEST(${UTC_NOW}, started_at), failure_reason = $3`;
@@ -18,7 +27,8 @@ export const runRepository: SchedulerStore = {
     const result = await db.query<SimulationForStart>(
       `SELECT s.id, s.reality_id, s.target_system,
               count(ris.report_id)::int AS report_count,
-              count(ris.report_id) FILTER (WHERE r.reality_id <> s.reality_id)::int AS other_reality_report_count
+              count(ris.report_id) FILTER (WHERE r.reality_id <> s.reality_id)::int AS other_reality_report_count,
+              ${MISSING_FIELDS_SQL} AS missing_fields
        FROM simulations s
        LEFT JOIN report_in_simulation ris ON ris.simulation_id = s.id
        LEFT JOIN reports r ON r.report_id = ris.report_id
