@@ -36,6 +36,8 @@ function makeScheduler(store: Partial<SchedulerStore>) {
     getSimulationForStart: vi.fn(async () => runnableSimulation),
     createRun: vi.fn(async () => startedRun()),
     getRun: vi.fn(async () => null),
+    listRuns: vi.fn(async () => []),
+    getStartedRun: vi.fn(async () => null),
     stopRun: vi.fn(async () => null),
     listStartedRuns: vi.fn(async () => []),
     failOverdueRuns: vi.fn(async () => []),

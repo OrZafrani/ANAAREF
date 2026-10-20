@@ -104,6 +104,14 @@ export function createScheduler(deps: SchedulerDeps) {
       return run;
     },
 
+    async listRuns(simulationId?: string) {
+      return store.listRuns(simulationId);
+    },
+
+    async getStartedRun() {
+      return store.getStartedRun();
+    },
+
     /**
      * Call once at boot: fails runs that timed out while the backend was down,
      * resumes the other started runs from their saved progress, and starts the watchdog.

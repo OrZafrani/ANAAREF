@@ -262,7 +262,13 @@ export default function LibraryPage() {
               <button className={`tree-row tree-all ${!selection.categoryId ? 'is-selected' : ''}`} type="button" onClick={() => chooseCategory(null)}>
                 <span>כל התבניות</span><span className="tree-count mono">{templates.length}</span>
               </button>
-              {loading && categories.length === 0 ? <div className="tree-loading">טוען קטלוג...</div> : (
+              {loading && categories.length === 0 ? <div className="tree-loading-skeleton" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((row) => <div className="tree-skeleton-row" key={row}>
+                  <span className="skeleton skeleton-chevron" />
+                  <span className={`skeleton skeleton-tree-label skeleton-width-${row % 3}`} />
+                  <span className="skeleton skeleton-count" />
+                </div>)}
+              </div> : (
                 <div className="category-tree">
                   {visibleCategories.map((category) => {
                     const categoryTemplates = directTemplates.get(category.id) ?? [];
@@ -312,7 +318,15 @@ export default function LibraryPage() {
               <span className="hint">{selectedSubCategory ? `${selectedCategory?.name} / ${selectedSubCategory.name}` : selectedCategory?.name ?? 'כל הקטגוריות'}</span>
               {(selection.categoryId || search) && <button className="btn btn-ghost btn-sm" type="button" onClick={() => { chooseCategory(null); setSearch(''); }}>ניקוי סינון</button>}
             </div>
-            {loading && templates.length === 0 ? <div className="card loading-state"><span className="loading-mark" />טוען תבניות</div> : visibleTemplates.length === 0 ? (
+            {loading && templates.length === 0 ? <div className="template-grid loading-grid" role="status" aria-label="טוען תבניות">
+              {[0, 1, 2, 3, 4, 5].map((card) => <div className="card template-card skeleton-card" aria-hidden="true" key={card}>
+                <div className="skeleton-card-tags"><span className="skeleton skeleton-tag" /><span className="skeleton skeleton-tag skeleton-tag-short" /><span className="skeleton skeleton-tag skeleton-tag-medium" /></div>
+                <span className="skeleton skeleton-title" />
+                <div className="skeleton-copy"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line skeleton-line-short" /></div>
+                <div className="skeleton-facts"><span className="skeleton skeleton-fact" /><span className="skeleton skeleton-fact skeleton-fact-short" /><span className="skeleton skeleton-fact" /></div>
+                <div className="skeleton-facts"><span className="skeleton skeleton-fact skeleton-fact-short" /><span className="skeleton skeleton-fact" /></div>
+              </div>)}
+            </div> : visibleTemplates.length === 0 ? (
               <div className="card empty-state">
                 <div className="empty-art"><SearchIcon size={26} /></div>
                 <h3>{search ? 'לא נמצאו תוצאות' : 'אין תבניות בתיקייה הזו'}</h3>

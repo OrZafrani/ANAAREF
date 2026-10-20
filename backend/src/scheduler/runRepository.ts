@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 import { ConflictError } from '../lib/validate.js';
 import { REQUIRED_REPORT_FIELDS, TARGET_LANGUAGE } from './reportMessage.js';
-import type { Cursor, DispatchRow, RunStatus, SchedulerStore, SimulationForStart, SimulationRun } from './types.js';
+import type { Cursor, DispatchRow, RunStatus, SchedulerStore, SimulationForStart, SimulationRun, SimulationRunSummary } from './types.js';
 
 const UTC_NOW = `(now() AT TIME ZONE 'utc')`;
 
@@ -47,8 +47,8 @@ export const runRepository: SchedulerStore = {
       );
       return result.rows[0];
     } catch (error) {
-      if (isUniqueViolation(error, 'simulation_runs_one_started_per_simulation_key')) {
-        throw new ConflictError('Simulation already has a started run');
+      if (isUniqueViolation(error, 'simulation_runs_one_started_key')) {
+        throw new ConflictError('Another simulation already has a started run');
       }
       throw error;
     }
@@ -58,6 +58,30 @@ export const runRepository: SchedulerStore = {
     const result = await db.query<SimulationRun>(
       `SELECT * FROM simulation_runs WHERE id = $1 AND simulation_id = $2`,
       [runId, simulationId],
+    );
+    return result.rows[0] ?? null;
+  },
+
+  async listRuns(simulationId) {
+    const result = await db.query<SimulationRunSummary>(
+      `SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s
+       FROM simulation_runs r
+       JOIN simulations s ON s.id = r.simulation_id
+       WHERE ($1::uuid IS NULL OR r.simulation_id = $1)
+       ORDER BY r.started_at DESC, r.id DESC`,
+      [simulationId ?? null],
+    );
+    return result.rows;
+  },
+
+  async getStartedRun() {
+    const result = await db.query<SimulationRunSummary>(
+      `SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s
+       FROM simulation_runs r
+       JOIN simulations s ON s.id = r.simulation_id
+       WHERE r.status = 'started'
+       ORDER BY r.started_at DESC, r.id DESC
+       LIMIT 1`,
     );
     return result.rows[0] ?? null;
   },

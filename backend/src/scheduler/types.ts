@@ -19,6 +19,13 @@ export interface SimulationRun {
   failure_reason: string | null;
 }
 
+/** A run joined with the simulation details needed by dashboards. */
+export interface SimulationRunSummary extends SimulationRun {
+  simulation_name: string;
+  target_system: 'specter' | 'combat';
+  simulation_length_s: number;
+}
+
 /** The fields startRun checks before it creates a run. */
 export interface SimulationForStart {
   id: string;
@@ -123,6 +130,8 @@ export interface SchedulerStore extends RunStore {
   /** Throws ConflictError if the simulation already has a started run. */
   createRun(simulationId: string): Promise<SimulationRun>;
   getRun(simulationId: string, runId: string): Promise<SimulationRun | null>;
+  listRuns(simulationId?: string): Promise<SimulationRunSummary[]>;
+  getStartedRun(): Promise<SimulationRunSummary | null>;
   stopRun(simulationId: string, runId: string): Promise<SimulationRun | null>;
   listStartedRuns(): Promise<SimulationRun[]>;
   /** Fails started runs past their length (or last offset) plus the grace. Returns their ids. */

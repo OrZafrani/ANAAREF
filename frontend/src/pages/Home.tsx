@@ -6,7 +6,8 @@ import type { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
-import { PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
+import { getRunningSimulation, getSimulationRuns, SimulationRun } from '../lib/runsApi';
+import { ChevronDownIcon, PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
 
 const DELETE_CONFIRM = 'האם אתה בטוח שברצונך למחוק את הסימולציה?';
@@ -17,6 +18,63 @@ function hasDraft() {
   } catch {
     return false;
   }
+}
+
+function runDuration(run: SimulationRun, now: number) {
+  const end = run.completed_at ? new Date(run.completed_at).getTime() : now;
+  const startedAt = new Date(run.started_at).getTime();
+  if (Number.isNaN(startedAt) || Number.isNaN(end)) return '—';
+  const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes} דק׳ ${seconds} שנ׳` : `${seconds} שנ׳`;
+}
+
+function plannedDuration(seconds: number) {
+  const totalMinutes = Math.floor(Math.max(0, seconds) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours} שע׳ ${minutes} דק׳`;
+  if (totalMinutes > 0) return `${totalMinutes} דק׳`;
+  return `${Math.max(0, seconds)} שנ׳`;
+}
+
+function runStatusLabel(status: SimulationRun['status']) {
+  return {
+    started: 'פעילה',
+    completed: 'הושלמה',
+    stopped: 'נעצרה',
+    failed: 'נכשלה',
+  }[status];
+}
+
+function runTargetLabel(target: SimulationRun['target_system']) {
+  return target === 'specter' ? SYSTEM_INFO.spectre.name : SYSTEM_INFO.cm.name;
+}
+
+function formatRunStart(iso: string) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('he-IL');
+}
+
+function formatRelativeRunTime(iso: string, now: number) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  const today = new Date(now);
+  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const dayLabel = dateDay === todayDay
+    ? 'היום'
+    : dateDay === todayDay - 24 * 60 * 60 * 1000
+      ? 'אתמול'
+      : date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+  const timeLabel = date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `${dayLabel}, ${timeLabel}`;
+}
+
+function estimatedEnd(run: SimulationRun) {
+  const startedAt = new Date(run.started_at).getTime();
+  return Number.isNaN(startedAt) ? null : new Date(startedAt + run.simulation_length_s * 1000).toISOString();
 }
 
 export default function Home() {
@@ -31,6 +89,12 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'all'>('all');
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
+  const [recentRuns, setRecentRuns] = useState<SimulationRun[]>([]);
+  const [showAllDayRuns, setShowAllDayRuns] = useState(false);
+  const [activeRun, setActiveRun] = useState<SimulationRun | null>(null);
+  const [runsLoading, setRunsLoading] = useState(true);
+  const [runsError, setRunsError] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const draftOpen = hasDraft();
 
   useEffect(() => {
@@ -63,6 +127,45 @@ export default function Home() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const refreshRuns = async () => {
+      const [runsResult, activeResult] = await Promise.allSettled([
+        getSimulationRuns(),
+        getRunningSimulation(),
+      ]);
+      if (!active) return;
+      if (runsResult.status === 'fulfilled') {
+        setRecentRuns(runsResult.value);
+        setRunsError(false);
+      } else {
+        setRunsError(true);
+      }
+      if (activeResult.status === 'fulfilled') setActiveRun(activeResult.value);
+      setRunsLoading(false);
+      setNow(Date.now());
+    };
+    void refreshRuns();
+    const interval = window.setInterval(() => void refreshRuns(), 10_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const runsFromLastDay = useMemo(() => {
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    return recentRuns.filter((run) => {
+      const startedAt = new Date(run.started_at).getTime();
+      return !Number.isNaN(startedAt) && startedAt >= oneDayAgo && startedAt <= now;
+    });
+  }, [recentRuns, now]);
+  const latestFiveRuns = recentRuns.slice(0, 5);
+  const visibleRuns = showAllDayRuns ? runsFromLastDay : latestFiveRuns;
+  const hasDifferentRunViews = runsFromLastDay.length > 5
+    || latestFiveRuns.some((run) => !runsFromLastDay.some((dayRun) => dayRun.id === run.id));
+
+  // Simulations saved before the system switch existed have no sys and belong to SPECTRE.
   const simulations = useMemo(
     () => allSimulations.filter((sim) => (sim.sys ?? 'spectre') === sys),
     [allSimulations, sys],
@@ -122,10 +225,18 @@ export default function Home() {
 
       <section className="dash-sec" aria-labelledby="active-title">
         <h2 className="dash-sec-title" id="active-title">סימולציה פעילה</h2>
-        <div className="card active-empty">
-          <PlayCircleIcon size={18} />
-          <span>אין סימולציה פעילה ב-{sysInfo.name}. הרצת סימולציות עדיין לא זמינה במערכת.</span>
-        </div>
+        {activeRun ? (
+          <div className="card active-empty active-run-card">
+            <PlayCircleIcon size={18} />
+            <span><strong>{activeRun.simulation_name}</strong> · {runTargetLabel(activeRun.target_system)} · התחילה {formatRunStart(activeRun.started_at)}</span>
+            <span className="run-status status-started">פעילה · {runDuration(activeRun, now)}</span>
+          </div>
+        ) : (
+          <div className="card active-empty">
+            <PlayCircleIcon size={18} />
+            <span>{runsLoading ? 'בודק אם יש סימולציה פעילה…' : `אין סימולציה פעילה כרגע. ניתן להריץ סימולציה אחת בכל פעם.`}</span>
+          </div>
+        )}
       </section>
 
       <section className="dash-sec" aria-labelledby="saved-title">
@@ -254,17 +365,49 @@ export default function Home() {
       <section className="dash-sec" aria-labelledby="runs-title">
         <h2 className="dash-sec-title" id="runs-title">
           ריצות אחרונות
-          <span className="sec-count mono">0</span>
+          <span className="sec-count mono">{visibleRuns.length}</span>
         </h2>
         <div className="card runs">
-          <div className="run-row run-head" aria-hidden="true">
-            <span>סימולציה</span>
-            <span>מערכת יעד</span>
-            <span>זמן שליחה</span>
-            <span>משך</span>
-            <span>סטטוס</span>
+          <div id="recent-runs-list">
+            <div className="run-row run-head" aria-hidden="true">
+              <span>סימולציה</span>
+              <span>מערכת יעד</span>
+              <span>זמן שליחה</span>
+              <span>משך</span>
+              <span>סטטוס משוער</span>
+            </div>
+            {runsLoading ? (
+              <p className="runs-empty">טוען ריצות אחרונות…</p>
+            ) : runsError ? (
+              <p className="runs-empty" role="status">לא ניתן לטעון את הריצות האחרונות כרגע.</p>
+            ) : visibleRuns.length === 0 ? (
+              <p className="runs-empty">{showAllDayRuns ? 'לא היו ריצות ב־24 השעות האחרונות.' : 'עדיין לא הורצו סימולציות.'}</p>
+            ) : visibleRuns.map((run) => (
+              <div className="run-row" key={run.id}>
+                <span className="run-name" title={run.simulation_name}>{run.simulation_name}</span>
+                <span>{runTargetLabel(run.target_system)}</span>
+                <time dateTime={run.started_at}>{formatRelativeRunTime(run.started_at, now)}</time>
+                <span>{plannedDuration(run.simulation_length_s)}</span>
+                <div className="run-status-cell">
+                  <span className={`run-status status-${run.status}`}>{runStatusLabel(run.status)}</span>
+                  <span className="run-estimate">{estimatedEnd(run) && now >= new Date(estimatedEnd(run)!).getTime() ? 'משך הריצה חלף' : 'הריצה בעיצומה'}</span>
+                  {estimatedEnd(run) && <span className="run-estimate-end">סיום משוער: {formatRelativeRunTime(estimatedEnd(run)!, now)}</span>}
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="runs-empty">עדיין לא הורצו סימולציות.</p>
+          {!runsLoading && !runsError && hasDifferentRunViews && (
+            <button
+              type="button"
+              className="run-expand-toggle"
+              aria-expanded={showAllDayRuns}
+              aria-controls="recent-runs-list"
+              onClick={() => setShowAllDayRuns((expanded) => !expanded)}
+            >
+              <span>{showAllDayRuns ? 'הצג את 5 הריצות האחרונות' : `הצג את כל ${runsFromLastDay.length} הריצות מ־24 השעות האחרונות`}</span>
+              <ChevronDownIcon className={showAllDayRuns ? 'is-expanded' : ''} size={17} />
+            </button>
+          )}
         </div>
       </section>
 
