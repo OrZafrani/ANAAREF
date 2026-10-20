@@ -13,6 +13,10 @@ export async function createSimulation(req: Request, res: Response): Promise<voi
   res.status(201).json(await simulationsService.createSimulation(req.body));
 }
 
+export async function updateSimulation(req: Request, res: Response): Promise<void> {
+  res.json(await simulationsService.updateSimulation(req.params.id, req.body));
+}
+
 export async function deleteSimulation(req: Request, res: Response): Promise<void> {
   await simulationsService.deleteSimulation(req.params.id);
   res.status(204).end();

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import NewSimulationModal from '../components/NewSimulationModal';
 import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
@@ -6,10 +7,8 @@ import type { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
-import { PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
+import { PencilIcon, PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
-
-const DELETE_CONFIRM = 'האם אתה בטוח שברצונך למחוק את הסימולציה?';
 
 function hasDraft() {
   try {
@@ -20,12 +19,14 @@ function hasDraft() {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
   const { sys } = useAppSettings();
   const sysInfo = SYSTEM_INFO[sys];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allSimulations, setAllSimulations] = useState<Simulation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [simulationToDelete, setSimulationToDelete] = useState<Simulation | null>(null);
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -86,19 +87,26 @@ export default function Home() {
   const openSimulation = allSimulations.find((sim) => sim.id === openId) ?? null;
   const filtersActive = difficulty !== 'all' || search.trim() !== '';
 
-  const handleDeleteSimulation = async (id: string) => {
-    if (!window.confirm(DELETE_CONFIRM)) return;
+  const handleConfirmDelete = async () => {
+    if (!simulationToDelete) return;
+    const { id } = simulationToDelete;
     setIsDeleting(id);
     setError('');
     try {
       await deleteSimulation(id);
       setAllSimulations((current) => current.filter((simulation) => simulation.id !== id));
       if (openId === id) setOpenId(null);
+      setSimulationToDelete(null);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'מחיקת הסימולציה נכשלה');
     } finally {
       setIsDeleting(null);
     }
+  };
+
+  const requestDeleteSimulation = (id: string) => {
+    const simulation = allSimulations.find((item) => item.id === id);
+    if (simulation) setSimulationToDelete(simulation);
   };
 
   const clearFilters = () => {
@@ -199,6 +207,9 @@ export default function Home() {
               const categories = Array.from(new Set(sim.events.map((event) => event.category))).slice(0, 3);
               return (
                 <article key={sim.id} className="card sim-card">
+                  <span className="badge b-var sim-creation-badge">
+                    {sim.aiGenerated ? 'נוצרה בAI' : 'נוצרה ידנית'}
+                  </span>
                   <div className="chips">
                     <span className="badge b-ok">שמורה</span>
                     <DifficultyBadge difficulty={sim.difficulty} />
@@ -222,8 +233,18 @@ export default function Home() {
                     <div className="sc-actions">
                       <button
                         type="button"
+                        className="icon-btn edit-sim-btn"
+                        onClick={() => navigate(`/simulations/${encodeURIComponent(sim.id)}/edit/events`)}
+                        aria-label={`עריכת הסימולציה ${sim.title}`}
+                        title="עריכת סימולציה"
+                      >
+                        <PencilIcon size={16} />
+                        <span>עריכה</span>
+                      </button>
+                      <button
+                        type="button"
                         className="icon-btn delete-sim-btn"
-                        onClick={() => handleDeleteSimulation(sim.id)}
+                        onClick={() => requestDeleteSimulation(sim.id)}
                         aria-label={`מחיקת הסימולציה ${sim.title}`}
                         title="מחיקת סימולציה"
                       >
@@ -273,11 +294,57 @@ export default function Home() {
         onClose={() => setIsModalOpen(false)}
       />
 
+      {simulationToDelete && (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onClick={() => {
+            if (isDeleting !== simulationToDelete.id) setSimulationToDelete(null);
+          }}
+        >
+          <div
+            className="modal-card delete-confirm-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-simulation-title"
+            aria-describedby="delete-simulation-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-header-text">
+                <h2 id="delete-simulation-title">מחיקת סימולציה</h2>
+                <p id="delete-simulation-description">
+                  האם למחוק את הסימולציה ״{simulationToDelete.title}״? לא ניתן לבטל פעולה זו.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="modal-cancel-btn"
+                disabled={isDeleting === simulationToDelete.id}
+                onClick={() => setSimulationToDelete(null)}
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={isDeleting === simulationToDelete.id}
+                onClick={handleConfirmDelete}
+              >
+                {isDeleting === simulationToDelete.id ? 'מוחק...' : 'מחיקה'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {openSimulation && (
         <SimulationDrawer
           simulation={openSimulation}
           onClose={() => setOpenId(null)}
-          onDelete={handleDeleteSimulation}
+          onDelete={requestDeleteSimulation}
         />
       )}
     </div>

@@ -12,6 +12,8 @@ interface BuilderHeaderProps {
   onSave?: () => void;
   onSaveDraft?: () => void;
   isSaved?: boolean;
+  isEditing?: boolean;
+  saveLabel?: string;
 }
 
 export default function BuilderHeader({
@@ -21,6 +23,8 @@ export default function BuilderHeader({
   onSave,
   onSaveDraft,
   isSaved = true,
+  isEditing = false,
+  saveLabel = 'שמירה',
 }: BuilderHeaderProps) {
   const navigate = useNavigate();
   const { sys } = useAppSettings();
@@ -58,7 +62,9 @@ export default function BuilderHeader({
               </button>
 
               <div className="title-section">
-                <span className="sub-title-breadcrumb">בונה ידני · סימולציה חדשה</span>
+                <span className="sub-title-breadcrumb">
+                  {isEditing ? 'בונה ידני · עריכת סימולציה' : 'בונה ידני · סימולציה חדשה'}
+                </span>
                 <h1 className="main-title">{title.trim() ? title : 'סימולציה ללא שם'}</h1>
               </div>
             </div>
@@ -93,7 +99,7 @@ export default function BuilderHeader({
                 className="top-gold-btn"
                 onClick={onSave}
               >
-                שמירה
+                {saveLabel}
               </button>
             </div>
           </div>
