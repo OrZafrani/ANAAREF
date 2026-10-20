@@ -1,7 +1,7 @@
 import { defineConfig, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:4000';
+const apiTarget = process.env.VITE_API_TARGET || 'http://127.0.0.1:4000';
 
 const config: UserConfig & { test: { globals: boolean; environment: string; setupFiles: string } } = {
   plugins: [react()],

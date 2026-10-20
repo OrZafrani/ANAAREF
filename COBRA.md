@@ -593,10 +593,10 @@ The backend service requires configuration via standard environment variables:
 NODE_ENV=development                 # 'development' | 'test' | 'production'
 PORT=5000                            # Express HTTP API listening port
 LOG_LEVEL=info                       # 'debug' | 'info' | 'warn' | 'error'
-CORS_ORIGIN=http://localhost:3000    # Authorized frontend origin URL
+CORS_ORIGINS=http://localhost:3000   # Authorized frontend origins, comma-separated
 
 # --- PostgreSQL Connection Parameters ---
-DATABASE_URL=postgresql://cobra_app:secure_pwd@localhost:5432/cobra_db
+DATABASE_URL=postgresql://cobra_app:<password>@localhost:5432/cobra_db
 DB_POOL_MIN=2
 DB_POOL_MAX=20
 DB_TIMEOUT_MS=5000

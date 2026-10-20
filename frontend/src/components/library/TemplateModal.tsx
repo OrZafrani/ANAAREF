@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import CoordinatePicker from './CoordinatePicker';
 import type { CategoryNode, LibraryTemplate, TemplateWrite } from '../../lib/libraryApi';
+import { safeExternalUrl } from '../../lib/safeUrl';
 
 type ModalMode = 'view' | 'edit' | 'create';
 type FormState = {
@@ -179,7 +180,7 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
               <div><dt>תת-קטגוריה</dt><dd>{template.sub_category_name ?? 'ללא תת-קטגוריה'}</dd></div>
               <div><dt>עיר / מדינה</dt><dd>{[template.city, template.country].filter(Boolean).join(', ') || 'לא דווח'}</dd></div>
               <div><dt>מיקום</dt><dd>{template.lat != null && template.long != null
-                ? <a href={`https://www.openstreetmap.org/?mlat=${template.lat}&mlon=${template.long}#map=13/${template.lat}/${template.long}`} target="_blank" rel="noreferrer">{template.lat}, {template.long}</a>
+                ? <a href={`https://www.openstreetmap.org/?mlat=${template.lat}&mlon=${template.long}#map=13/${template.lat}/${template.long}`} target="_blank" rel="noopener noreferrer">{template.lat}, {template.long}</a>
                 : 'לא דווח'}</dd></div>
               <div><dt>חשבון / ערוץ</dt><dd>{[template.account_name, template.channel_name].filter(Boolean).join(' · ') || 'לא דווח'}</dd></div>
               <div><dt>פורסם</dt><dd>{template.published_at ? new Date(template.published_at).toLocaleString('he-IL') : 'לא דווח'}</dd></div>
@@ -188,7 +189,9 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
               <div><dt>הרוגים - צד אדום</dt><dd>{displayValue(template.red_death_count)}</dd></div>
               <div><dt>פצועים - צד כחול</dt><dd>{displayValue(template.blue_injured_count)}</dd></div>
               <div><dt>הרוגים - צד כחול</dt><dd>{displayValue(template.blue_death_count)}</dd></div>
-              <div><dt>קישור מקור</dt><dd><a href={template.report_url} target="_blank" rel="noreferrer">פתיחת מקור ↗</a></dd></div>
+              <div><dt>קישור מקור</dt><dd>{safeExternalUrl(template.report_url)
+                ? <a href={safeExternalUrl(template.report_url)!} target="_blank" rel="noopener noreferrer">פתיחת מקור ↗</a>
+                : 'קישור לא תקין'}</dd></div>
               <div><dt>עודכן</dt><dd>{new Date(template.template_updated_at).toLocaleString('he-IL')}</dd></div>
             </dl>
             <footer className="modal-actions">

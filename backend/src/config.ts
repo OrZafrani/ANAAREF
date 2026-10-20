@@ -15,7 +15,25 @@ function intFromEnv(name: string, fallback: number, min = 0): number {
   return value;
 }
 
+function listFromEnv(name: string): string[] {
+  return (process.env[name] ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export const config = {
+  http: {
+    // Loopback by default; set HOST=0.0.0.0 only behind a proxy or firewall, since the API has no sign-in yet.
+    host: process.env.HOST?.trim() || '127.0.0.1',
+    port: intFromEnv('PORT', 4000, 1),
+    // Browser origins allowed to call the API directly. Empty: same-origin only (Vite proxy / reverse proxy).
+    corsOrigins: listFromEnv('CORS_ORIGINS'),
+    // Requests that change data, per client IP per minute.
+    writeRateLimitPerMin: intFromEnv('RATE_LIMIT_WRITES_PER_MIN', 120, 1),
+    // Templates allow up to 2 × 50,000 characters of content, which can exceed 300 KB in UTF-8.
+    jsonBodyLimit: '512kb',
+  },
   kafka: {
     brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092')
       .split(',')

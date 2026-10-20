@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'csv-parse';
 import type { PoolClient } from 'pg';
 import { db } from '../db.js';
+import { vHttpUrl } from '../lib/validate.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -164,7 +165,15 @@ async function readCsvRows(): Promise<CsvRow[]> {
   });
 }
 
+const validateReportUrl = vHttpUrl();
+
 async function upsertRow(client: PoolClient, row: CsvRow): Promise<void> {
+  // Same rule as the API: the UI renders report_url as a link, so only http(s) may be stored.
+  const reportUrl = validateReportUrl(row.report_url);
+  if (!reportUrl.ok) {
+    throw new Error(`Seed row has an invalid report_url (${reportUrl.error}): ${String(row.report_url).slice(0, 200)}`);
+  }
+
   // 1. Upsert category
   const catResult = await client.query(UPSERT_CATEGORY, [row.category.trim()]);
   const categoryId: string = catResult.rows[0].id;
@@ -188,7 +197,7 @@ async function upsertRow(client: PoolClient, row: CsvRow): Promise<void> {
     row.platform.trim(),
     row.account_name?.trim() || null,
     row.channel_name?.trim() || null,
-    row.report_url.trim(),
+    reportUrl.value,
     row.report_title?.trim() || null,
     row.original_language?.trim() || null,
     parseOptionalTimestamp(row.published_at),

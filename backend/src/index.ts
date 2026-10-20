@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { db } from './db.js';
 import { reportPublisher } from './kafka.js';
+import { corsOptions, requireJsonForWrites, securityHeaders, writeRateLimit } from './lib/security.js';
 import { apiErrorHandler } from './lib/validate.js';
 import { categoryRoutes, subCategoryRoutes } from './routes/categoryRoutes.js';
 import { libraryRoutes } from './routes/libraryRoutes.js';
@@ -19,10 +20,19 @@ import { isLibraryEmpty, runSeedLibrary } from './seed/categorySeedLoader.js';
 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+  console.warn('[security] NODE_TLS_REJECT_UNAUTHORIZED=0 turns off TLS certificate checks for every outgoing connection. '
+    + 'Remove it and set DATABASE_SSL_CA instead (see backend/.env.example).');
+}
+
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(securityHeaders);
+app.use(cors(corsOptions(config.http.corsOrigins)));
+app.use(express.json({ limit: config.http.jsonBodyLimit }));
 app.use(morgan('dev'));
+app.use('/api', writeRateLimit({ max: config.http.writeRateLimitPerMin, windowMs: 60_000 }));
+app.use('/api', requireJsonForWrites);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
@@ -43,9 +53,9 @@ app.use('/api/simulations/:simulationId/runs', createRunRoutes(scheduler));
 
 app.use(apiErrorHandler);
 
-const PORT = process.env.PORT || 4000;
-const server = app.listen(PORT, async () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+const { host, port } = config.http;
+const server = app.listen(port, host, async () => {
+  console.log(`Backend running on http://${host}:${port}`);
 
   // Resume simulation runs that were dispatching when the backend last stopped.
   try {
