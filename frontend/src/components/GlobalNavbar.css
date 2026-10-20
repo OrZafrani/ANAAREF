@@ -28,6 +28,7 @@
   height: 44px;
   flex: none;
   object-fit: contain;
+  transform: scale(2);
 }
 
 .brand-text-block {
@@ -118,4 +119,56 @@
 
 @media (max-width: 900px) {
   .global-navbar { padding: 8px 16px; }
+}
+
+@media (max-width: 700px) {
+  .global-navbar {
+    padding: 0.6rem 1rem;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .navbar-controls-section {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .target-sys-label {
+    display: none;
+  }
+
+  .navbar-pill-btn,
+  .btn-darkmode-toggle {
+    min-height: 40px;
+    padding-inline: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .global-navbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .navbar-brand-section {
+    gap: 0.5rem;
+  }
+
+  .cobra-brand-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-tagline-sub {
+    font-size: 0.66rem;
+  }
+
+  .navbar-controls-section {
+    justify-content: flex-start;
+  }
+
+  .user-avatar-badge {
+    margin-inline-start: auto;
+  }
 }

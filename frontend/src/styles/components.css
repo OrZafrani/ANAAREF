@@ -86,9 +86,10 @@
 .risk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .risk::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
 .r-low { color: var(--risk-low); }
-.r-med { color: var(--risk-med); }
+.r-medium { color: var(--risk-med); }
 .r-high { color: var(--risk-high); }
-.r-imm { color: var(--risk-imm); }
+.r-critical { color: var(--risk-imm); }
+.r-unknown { color: var(--muted); }
 
 /* Filter chips: selected chip is neutral, not system-coloured */
 .chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
