@@ -1,7 +1,7 @@
 import type { TemplateWrite } from '../lib/libraryApi';
 
 export type AiDifficulty = 'easy' | 'medium' | 'hard';
-export type ReportKind = 'original' | 'duplicate' | 'false' | 'noise';
+export type ReportKind = 'original' | 'duplicate' | 'false' | 'noise' | 'unclassified';
 export type BuilderStep = 1 | 2 | 3;
 
 export interface AiSimulationSettings {
@@ -18,10 +18,17 @@ export interface AiSimulationSettings {
 // Generation controls and report labels are frontend metadata, not new DB columns.
 export interface GenerationSettings {
   reports_per_minute: number;
-  duplicate_percent: number;
-  false_percent: number;
-  noise_percent: number;
+  noise_level: 'low' | 'medium' | 'high';
+  region: string;
+  country: string;
+  area: { lat_min: number | null; lat_max: number | null; long_min: number | null; long_max: number | null };
 }
+
+export type GenerationStatus = 'queued' | 'running';
+export type GenerationResponse =
+  | { runId: string; status: 'queued' | 'running' }
+  | { runId: string; status: 'failed'; error: string }
+  | { runId: string; status: 'completed'; reports: AiSimulationReport[]; warnings: string[] };
 
 export type ReportPayload = Omit<TemplateWrite, 'category_id' | 'sub_category_id'> & {
   reality_id: 1;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { CloseIcon } from '../Icons';
+import { ClockIcon, CloseIcon } from '../Icons';
 import { aiReportTitle } from '../../lib/aiSimulation';
 import type { AiSimulationReport } from '../../types/aiSimulation';
 
@@ -50,11 +50,19 @@ export default function AiReportEditor({ report, durationSeconds, onSave, onClos
       const data = new FormData(event.currentTarget);
       const title = String(data.get('report_title') ?? '').trim();
       const content = String(data.get('original_content') ?? '').trim();
-      const minute = numberField(data, 'minute', 0, durationSeconds / 60);
-      if (!title || !content || minute === null) throw new Error('כותרת, תוכן ועיתוי הם שדות חובה.');
+      const minutesText = String(data.get('minutes') ?? '').trim();
+      const secondsText = String(data.get('seconds') ?? '').trim();
+      if (!title || !content || !minutesText || !secondsText) throw new Error('כותרת, תוכן ועיתוי הם שדות חובה.');
+      const minutes = Number(minutesText);
+      const seconds = Number(secondsText);
+      if (!Number.isSafeInteger(minutes) || minutes < 0 || !Number.isInteger(seconds) || seconds < 0 || seconds > 59) {
+        throw new Error('יש להזין דקות שלמות ולא שליליות ושניות בין 0 ל-59.');
+      }
+      const offset = minutes * 60 + seconds;
+      if (offset > durationSeconds) throw new Error('עיתוי הדיווח חייב להיות בתוך משך הסימולציה.');
       onSave({
         ...report,
-        dispatch_offset_s: Math.round(minute * 60),
+        dispatch_offset_s: offset,
         payload: {
           ...payload,
           report_title: title,
@@ -93,10 +101,18 @@ export default function AiReportEditor({ report, durationSeconds, onSave, onClos
         <form onSubmit={submit}>
           <div className="ai-editor-fields">
             {error && <p role="alert" className="ai-alert">{error}</p>}
-            <label>כותרת<input name="report_title" required maxLength={500} defaultValue={payload.report_title ? aiReportTitle(report) : ''} /></label>
+            <fieldset className="ai-editor-timing" aria-describedby="ai-report-time-hint">
+              <legend><ClockIcon size={15} />עיתוי בסימולציה</legend>
+              <div className="ai-time-inputs">
+                <label htmlFor="ai-report-minutes">דקות<input id="ai-report-minutes" name="minutes" required type="number" min={0} max={Math.floor(durationSeconds / 60)} step={1} defaultValue={Math.floor(report.dispatch_offset_s / 60)} aria-describedby="ai-report-time-hint" /></label>
+                <span className="ai-time-separator" aria-hidden="true">:</span>
+                <label htmlFor="ai-report-seconds">שניות<input id="ai-report-seconds" name="seconds" required type="number" min={0} max={59} step={1} defaultValue={report.dispatch_offset_s % 60} aria-describedby="ai-report-time-hint" /></label>
+              </div>
+              <p id="ai-report-time-hint">שינוי העיתוי יעדכן את מיקום הדיווח ברשימה לאחר השמירה.</p>
+            </fieldset>
+            <label>כותרת<input name="report_title" required maxLength={500} defaultValue={aiReportTitle(report)} /></label>
             <label>תוכן הדיווח<textarea name="original_content" required rows={4} maxLength={50000} defaultValue={payload.original_content} /></label>
             <div className="ai-field-grid">
-              <label>עיתוי בסימולציה (דקה)<input name="minute" required type="number" min={0} max={durationSeconds / 60} step="any" defaultValue={report.dispatch_offset_s / 60} /></label>
               <label>רמת איום (0–100)<input name="threat_level" type="number" min={0} max={100} step={1} defaultValue={payload.threat_level ?? ''} placeholder="לא ידוע" /></label>
               <label>עיר<input name="city" maxLength={200} defaultValue={payload.city ?? ''} /></label>
               <label>קו רוחב<input name="lat" type="number" min={-90} max={90} step="any" defaultValue={payload.lat ?? ''} placeholder="לא ידוע" /></label>

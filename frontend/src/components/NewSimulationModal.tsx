@@ -92,7 +92,7 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
               <span className="choice-ic"><AiIcon size={22} /></span>
               <span className="choice-t-row">
                 <span className="choice-t">יצירה אוטומטית (AI)</span>
-                <span className="badge b-diff">הדגמת Frontend</span>
+                <span className="badge b-diff">AI</span>
               </span>
               <span className="choice-d">
                 הגדרת התרחיש בטופס ובשיחה, ואז יצירת {sysInfo.unitItems} מקוריים שאפשר לערוך מיד.
@@ -102,7 +102,7 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
                 <li>יצירה ובדיקה: עריכה והוספה מהספרייה</li>
                 <li>שמירה</li>
               </ul>
-              <span className="choice-note">בנייה בשיחה, בדיקת דיווחים ושמירה מקומית. ללא חיבור לשירות AI בשלב זה.</span>
+              <span className="choice-note">תיאור תרחיש, יצירת דיווחים בשירות AI, בדיקה ושמירה במסד הנתונים.</span>
             </button>
           </div>
         </div>

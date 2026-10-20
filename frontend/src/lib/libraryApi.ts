@@ -43,6 +43,8 @@ export interface LibraryTemplate {
   blue_injured_count: number | null;
   blue_death_count: number | null;
   fastbreak_model_version: string | null;
+  media_type?: string[];
+  categories?: string[];
 }
 
 export type TemplateWrite = Omit<LibraryTemplate,

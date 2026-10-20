@@ -1,11 +1,17 @@
 import type { CategoryNode, LibraryTemplate } from '../lib/libraryApi';
-import type { ReportPayload } from '../types/aiSimulation';
+import type { AiSimulationDraft, AiSimulationReport, ReportPayload } from '../types/aiSimulation';
 
-export const DEMO_PROMPTS = [
-  'מטח רקטות על שדרות עם 3 פצועים, ובמקביל אירוע חירום בירושלים. רמה קשה, 45 דקות',
-  'תרגיל חילוץ בחיפה עם דיווחים כפולים ורעש רקע. רמה קלה, 20 דקות',
-  'שריפה בבאר שבע, כמה מוקדים במקביל ודיווחים לא מאומתים. רמה בינונית, 30 דקות',
-];
+export function makeTestReports(draft: AiSimulationDraft): AiSimulationReport[] {
+  const count = Math.round(draft.simulation.length_s / 60 * draft.generation.reports_per_minute);
+  return Array.from({ length: count }, (_, index) => ({
+    client_id: crypto.randomUUID(), template_id: null, kind: 'unclassified', origin: 'ai',
+    category_name: 'דיווח AI', dispatch_offset_s: Math.floor(index * 60 / draft.generation.reports_per_minute),
+    payload: {
+      ...MOCK_REPORT_PAYLOAD, report_title: `דיווח בדיקה ${index + 1}`,
+      report_url: `https://example.invalid/report/${index}`,
+    },
+  }));
+}
 
 export const MOCK_REPORT_PAYLOAD: ReportPayload = {
   reality_id: 1,

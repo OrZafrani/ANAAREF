@@ -34,11 +34,11 @@ export default function AiSavedSimulations() {
   return (
     <section className="ai-saved" aria-labelledby="ai-saved-title">
       <h3 id="ai-saved-title"><AiIcon size={20} />סימולציות AI מקומיות ({simulations.length})</h3>
-      <p>נתוני הדגמה שנשמרו בדפדפן זה בלבד. אין חיבור לשרת ואין אפשרות להרצה.</p>
+      <p>טיוטות שנשמרו בדפדפן זה בלבד, כולל נתונים ישנים ממצב ההדגמה. סימולציות שנשמרו במסד הנתונים מופיעות ברשימה הראשית.</p>
       {error && <p role="alert" className="ai-saved-error">{error}</p>}
       <div className="ai-saved-grid">
         {simulations.map((draft) => <article key={draft.simulation.id} className="ai-saved-card">
-          <div className="ai-saved-badges"><span>נוצרה ב-AI · הדגמה</span><span>{draft.status === 'saved' ? 'שמורה' : 'טיוטה'}</span><span>{DIFFICULTY_PRESETS[draft.simulation.difficulty].label}</span></div>
+          <div className="ai-saved-badges"><span>בונה AI</span><span>{draft.status === 'saved' ? 'שמורה מקומית' : 'טיוטה'}</span><span>{DIFFICULTY_PRESETS[draft.simulation.difficulty].label}</span></div>
           <h4>{draft.simulation.name || 'טיוטת AI ללא שם'}</h4>
           <p>{draft.simulation.description || 'טרם נוסף תיאור'}</p>
           <small>{draft.reports.length} דיווחים · {draft.simulation.length_s / 60} דקות</small>

@@ -12,16 +12,15 @@ function isDraft(value: unknown): value is AiSimulationDraft {
   if (!isObject(value) || value.version !== 1 || !isObject(value.simulation) || !isObject(value.generation)) return false;
   const s = value.simulation;
   const g = value.generation;
+  const area = g.area;
   if (typeof s.id !== 'string' || typeof s.name !== 'string' || typeof s.description !== 'string'
     || !['easy', 'medium', 'hard'].includes(String(s.difficulty))
-    || !isNumber(s.length_s) || s.length_s < 600 || s.length_s > 7200
-    || s.reality_id !== 1 || s.ai_generated !== true || s.target_system !== 'specter'
-    || !['reports_per_minute', 'duplicate_percent', 'false_percent', 'noise_percent'].every((key) => isNumber(g[key]))) return false;
+    || !isNumber(s.length_s) || s.length_s < 60 || s.length_s > 7200
+    || s.reality_id !== 1 || s.ai_generated !== true || s.target_system !== 'specter') return false;
   if (!isNumber(g.reports_per_minute) || g.reports_per_minute < 0.5 || g.reports_per_minute > 12
-    || !['duplicate_percent', 'false_percent', 'noise_percent'].every((key) => {
-      const n = g[key];
-      return isNumber(n) && Number.isInteger(n) && n >= 0 && n <= 100;
-    })) return false;
+    || !['low', 'medium', 'high'].includes(String(g.noise_level))
+    || typeof g.region !== 'string' || typeof g.country !== 'string' || !isObject(area)
+    || !['lat_min', 'lat_max', 'long_min', 'long_max'].every((key) => area[key] === null || isNumber(area[key]))) return false;
   if (typeof value.scenario !== 'string' || !isNullableText(value.generated_from)
     || (value.step !== 1 && value.step !== 2 && value.step !== 3)
     || (value.status !== 'draft' && value.status !== 'saved') || !isDate(value.created_at) || !isDate(value.updated_at)) return false;
@@ -33,7 +32,7 @@ function isDraft(value: unknown): value is AiSimulationDraft {
     const p = report.payload;
     return typeof report.client_id === 'string' && isNullableText(report.template_id)
       && isNumber(report.dispatch_offset_s) && Number.isInteger(report.dispatch_offset_s) && report.dispatch_offset_s >= 0
-      && ['original', 'duplicate', 'false', 'noise'].includes(String(report.kind))
+      && ['original', 'duplicate', 'false', 'noise', 'unclassified'].includes(String(report.kind))
       && (report.origin === 'ai' || report.origin === 'library') && typeof report.category_name === 'string'
       && p.reality_id === 1 && isNumber(p.schema_version) && typeof p.is_official === 'boolean'
       && typeof p.platform === 'string' && typeof p.report_url === 'string' && typeof p.original_content === 'string'
@@ -50,10 +49,22 @@ export function loadAiSimulations(): AiSimulationDraft[] {
   const raw = localStorage.getItem(AI_SIMULATIONS_KEY);
   if (raw === null) return [];
   const data: unknown = JSON.parse(raw);
-  if (!Array.isArray(data) || !data.every(isDraft)) {
+  const migrated = Array.isArray(data) ? data.map((value: unknown) => {
+    if (!isObject(value) || !isObject(value.generation) || value.generation.noise_level !== undefined) return value;
+    const old = value.generation;
+    if (!['duplicate_percent', 'false_percent', 'noise_percent'].every((key) => isNumber(old[key]) && Number.isInteger(old[key]) && old[key] >= 0 && old[key] <= 100)) return value;
+    return {
+      ...value,
+      generation: {
+        reports_per_minute: old.reports_per_minute, noise_level: 'medium', region: '', country: 'IL',
+        area: { lat_min: null, lat_max: null, long_min: null, long_max: null },
+      },
+    };
+  }) : data;
+  if (!Array.isArray(migrated) || !migrated.every(isDraft)) {
     throw new Error('נתוני סימולציות ה-AI המקומיים אינם תקינים או אינם תואמים לגרסה הזו. לא בוצעה דריסה של הנתונים.');
   }
-  return data;
+  return migrated;
 }
 
 export function saveAiSimulation(draft: AiSimulationDraft, status: 'draft' | 'saved'): AiSimulationDraft {

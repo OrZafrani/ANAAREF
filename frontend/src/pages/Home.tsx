@@ -4,7 +4,7 @@ import AiSavedSimulations from '../components/ai/AiSavedSimulations';
 import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
 import type { DifficultyLevel, Simulation } from '../types/simulation';
-import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
+import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS, getSimulationMetrics } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import { PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
@@ -196,7 +196,7 @@ export default function Home() {
         {visible.length > 0 ? (
           <div className="sim-grid">
             {visible.map((sim) => {
-              const preset = DIFFICULTY_PRESETS[sim.difficulty];
+              const preset = getSimulationMetrics(sim);
               const categories = Array.from(new Set(sim.events.map((event) => event.category))).slice(0, 3);
               return (
                 <article key={sim.id} className="card sim-card">

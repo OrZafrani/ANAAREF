@@ -50,7 +50,7 @@ export default function AiReportDetails({ report, busy, onClose, onEdit, onRemov
     ['קו רוחב', payload.lat ?? unknown], ['קו אורך', payload.long ?? unknown],
     ['תוכן מתורגם', payload.translated_content ?? unknown], ['כתובת מקור', payload.report_url],
     ['גרסת סכמה', payload.schema_version], ['גרסת מודל', payload.fastbreak_model_version ?? unknown],
-    ['מציאות', payload.reality_id], ['תבנית מקור', report.template_id ?? 'נוצר בהדגמה'],
+    ['מציאות', payload.reality_id], ['תבנית מקור', report.template_id ?? 'ללא תבנית ספרייה'],
   ];
 
   return (
@@ -72,7 +72,7 @@ export default function AiReportDetails({ report, busy, onClose, onEdit, onRemov
             <span className={`ai-kind ai-kind-${report.kind}`}>{REPORT_KIND_LABELS[report.kind]}</span>
             <span className="ai-kind">{report.category_name}</span>
             <span className="ai-offset" dir="ltr">T+{formatOffset(report.dispatch_offset_s)}</span>
-            <span className="ai-report-tag">{report.origin === 'ai' ? 'נוצר ע״י AI' : 'עותק מהספרייה'}</span>
+            {report.origin === 'library' && <span className="ai-report-tag">עותק מהספרייה</span>}
             </div>
             <h2 id="ai-report-details-title" className="drawer-title">{aiReportTitle(report)}</h2>
             <p className="drawer-desc">{payload.original_content}</p>

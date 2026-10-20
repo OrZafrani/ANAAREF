@@ -2,12 +2,15 @@ import type { PoolClient } from 'pg';
 import xxhash from 'xxhash-wasm';
 import { db } from '../db.js';
 import { ApiError } from './api-error.js';
+import { reportFields } from '../lib/reportFields.js';
+import { vStringArray } from '../lib/validate.js';
 
 const xxhashPromise = xxhash();
 const REALITY_ID = 1;
 const REPORT_PLATFORM = 'cobra-manual';
 const EVENT_CATEGORIES = new Set(['מבצעי', 'התראה', 'תקלה', 'חירום', 'תקשורת']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const AI_REPORT_BATCH_SIZE = 250;
 
 interface SimulationEventInput {
   id: string;
@@ -17,12 +20,22 @@ interface SimulationEventInput {
   description: string;
 }
 
+interface AiReportInput {
+  client_id: string;
+  template_id: string | null;
+  dispatch_offset_s: number;
+  category_name: string;
+  payload: Record<string, unknown>;
+}
+
 interface CreateSimulationInput {
   title: string;
   description: string | null;
   difficulty: keyof typeof DIFFICULTY_SETTINGS;
   sys: 'spectre' | 'cm';
   events: SimulationEventInput[];
+  aiReports?: AiReportInput[];
+  lengthSeconds: number;
 }
 
 const DIFFICULTY_SETTINGS = {
@@ -48,6 +61,8 @@ const SIMULATION_SELECT = `
            WHEN 'combat' THEN 'cm'
          END AS sys,
          s.created_at AS "createdAt",
+         s.ai_generated AS "aiGenerated",
+         s.length_s AS "lengthSeconds",
          COALESCE(
            jsonb_agg(
              jsonb_build_object(
@@ -58,7 +73,7 @@ const SIMULATION_SELECT = `
                  substring(r.original_content FROM E'^סיווג: ([^\\n]*)'),
                  'מבצעי'
                ),
-               'minute', ris.dispatch_offset_s / 60,
+               'minute', ris.dispatch_offset_s / 60.0,
                'description', regexp_replace(
                  r.original_content,
                  E'^סיווג: [^\\n]*\\n\\n',
@@ -106,7 +121,11 @@ function validateCreateInput(value: unknown): CreateSimulationInput {
     throw new ApiError('Description must be a string.', 400);
   }
 
-  if (!Array.isArray(input.events) || input.events.length === 0 || !input.events.every(validateEvent)) {
+  if (input.ai_generated !== undefined && typeof input.ai_generated !== 'boolean') {
+    throw new ApiError('ai_generated must be a boolean.', 400);
+  }
+  const isAi = input.ai_generated === true;
+  if (!isAi && (!Array.isArray(input.events) || input.events.length === 0 || !input.events.every(validateEvent))) {
     throw new ApiError('At least one valid simulation event is required.', 400);
   }
 
@@ -115,7 +134,23 @@ function validateCreateInput(value: unknown): CreateSimulationInput {
     throw new ApiError('A valid target system is required.', 400);
   }
   const settings = DIFFICULTY_SETTINGS[difficulty];
-  if (input.events.some((event) => event.minute * 60 > settings.lengthSeconds)) {
+  let aiReports: AiReportInput[] | undefined;
+  let lengthSeconds: number = settings.lengthSeconds;
+  if (isAi) {
+    if (typeof input.length_s !== 'number' || !Number.isInteger(input.length_s) || input.length_s < 60 || input.length_s > 7200) {
+      throw new ApiError('AI simulation duration must be between 60 and 7200 seconds.', 400);
+    }
+    lengthSeconds = input.length_s;
+    if (!Array.isArray(input.reports) || input.reports.length === 0 || input.reports.length > 1440) {
+      throw new ApiError('Between 1 and 1440 AI reports are required.', 400);
+    }
+    aiReports = input.reports.map((report) => validateAiReport(report, lengthSeconds));
+    if (new Set(aiReports.map((report) => report.client_id)).size !== aiReports.length) {
+      throw new ApiError('AI report client IDs must be unique.', 400);
+    }
+  }
+  const events = isAi ? [] : input.events as SimulationEventInput[];
+  if (events.some((event) => event.minute * 60 > settings.lengthSeconds)) {
     throw new ApiError('Simulation events must fall within the simulation duration.', 400);
   }
 
@@ -124,7 +159,52 @@ function validateCreateInput(value: unknown): CreateSimulationInput {
     description: typeof input.description === 'string' ? input.description.trim() || null : null,
     difficulty,
     sys: input.sys === 'cm' ? 'cm' : 'spectre',
-    events: input.events,
+    events,
+    aiReports,
+    lengthSeconds,
+  };
+}
+
+export function validateAiReport(value: unknown, lengthSeconds: number): AiReportInput {
+  if (typeof value !== 'object' || value === null) throw new ApiError('Invalid AI report.', 400);
+  const report = value as Record<string, unknown>;
+  if (typeof report.client_id !== 'string' || !UUID_PATTERN.test(report.client_id)
+    || typeof report.dispatch_offset_s !== 'number' || !Number.isInteger(report.dispatch_offset_s)
+    || report.dispatch_offset_s < 0 || report.dispatch_offset_s > lengthSeconds
+    || typeof report.category_name !== 'string' || !report.category_name.trim()
+    || (report.template_id !== null && (typeof report.template_id !== 'string' || !UUID_PATTERN.test(report.template_id)))
+    || typeof report.payload !== 'object' || report.payload === null) {
+    throw new ApiError('Invalid AI report identity, category, timing or payload.', 400);
+  }
+  const raw = report.payload as Record<string, unknown>;
+  if (raw.reality_id !== REALITY_ID) throw new ApiError('AI reports must use synthetic reality 1.', 400);
+  const payload: Record<string, unknown> = {};
+  for (const [field, validate] of Object.entries(reportFields)) {
+    const result = validate(raw[field]);
+    if (!result.ok) throw new ApiError(`Invalid report ${field}: ${result.error}`, 400);
+    if (typeof result.value === 'number' && Number.isInteger(result.value) && result.value > 2147483647
+      && (field === 'schema_version' || field.endsWith('_count'))) {
+      throw new ApiError(`Invalid report ${field}: exceeds database integer range.`, 400);
+    }
+    payload[field] = result.value;
+  }
+  for (const field of ['original_content', 'translated_content']) {
+    const content = raw[field];
+    if (typeof content === 'string') {
+      if (content.length > 50000 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/.test(content)) {
+        throw new ApiError(`Invalid report ${field}: unsupported length or control characters.`, 400);
+      }
+      payload[field] = content;
+    }
+  }
+  for (const [field, fallback] of [['media_type', ['text']], ['categories', [report.category_name]]] as const) {
+    const result = vStringArray()(raw[field] ?? [...fallback]);
+    if (!result.ok) throw new ApiError(`Invalid report ${field}: ${result.error}`, 400);
+    payload[field] = result.value;
+  }
+  return {
+    client_id: report.client_id, template_id: report.template_id,
+    dispatch_offset_s: report.dispatch_offset_s, category_name: report.category_name.trim(), payload,
   };
 }
 
@@ -161,19 +241,51 @@ export async function createSimulation(value: unknown) {
     transactionStarted = true;
 
     const { rows } = await client.query(
-      `INSERT INTO simulations (name, description, difficulty, length_s, target_system)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO simulations (name, description, difficulty, length_s, target_system${input.aiReports ? ', ai_generated' : ''})
+       VALUES ($1, $2, $3, $4, $5${input.aiReports ? ', true' : ''})
        RETURNING id, name AS title, description, difficulty, length_s AS "lengthSeconds",
                  target_system AS "targetSystem", created_at AS "createdAt"`,
       [
         input.title,
         input.description,
         settings.databaseValue,
-        settings.lengthSeconds,
+        input.lengthSeconds,
         input.sys === 'cm' ? 'combat' : 'specter',
       ],
     );
     const simulation = rows[0];
+
+    const aiReports = input.aiReports ?? [];
+    const columns = [...Object.keys(reportFields), 'media_type', 'categories'];
+    for (let start = 0; start < aiReports.length; start += AI_REPORT_BATCH_SIZE) {
+      const reportValues: unknown[] = [];
+      const linkValues: unknown[] = [];
+      const reportRows: string[] = [];
+      const linkRows: string[] = [];
+      for (const report of aiReports.slice(start, start + AI_REPORT_BATCH_SIZE)) {
+        // Simulation-scoped URLs isolate editable copies, including repeated library templates.
+        const reportUrl = `https://cobra.invalid/simulations/${simulation.id}/events/${report.client_id}`;
+        const reportId = BigInt.asIntN(64, h64(`${REALITY_ID}${report.payload.platform}${reportUrl}`)).toString();
+        const values = [
+          reportId, REALITY_ID, report.template_id,
+          ...columns.map((column) => column === 'report_url' ? reportUrl : report.payload[column]),
+        ];
+        reportRows.push(`(${values.map((_, index) => `$${reportValues.length + index + 1}`).join(', ')})`);
+        reportValues.push(...values);
+        linkRows.push(`($${linkValues.length + 1}, $${linkValues.length + 2}, $${linkValues.length + 3})`);
+        linkValues.push(simulation.id, reportId, report.dispatch_offset_s);
+      }
+      await client.query(
+        `INSERT INTO reports (report_id, reality_id, template_id, ${columns.join(', ')})
+         VALUES ${reportRows.join(', ')}`,
+        reportValues,
+      );
+      await client.query(
+        `INSERT INTO report_in_simulation (simulation_id, report_id, dispatch_offset_s)
+         VALUES ${linkRows.join(', ')}`,
+        linkValues,
+      );
+    }
 
     for (const event of input.events) {
       const reportUrl = `https://cobra.invalid/simulations/${simulation.id}/events/${encodeURIComponent(event.id)}`;
@@ -208,7 +320,7 @@ export async function createSimulation(value: unknown) {
 
     await client.query('COMMIT');
     transactionStarted = false;
-    return { ...simulation, eventCount: input.events.length };
+    return { ...simulation, eventCount: input.aiReports?.length ?? input.events.length };
   } catch (error) {
     if (client && transactionStarted) {
       try {

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Simulation } from '../types/simulation';
-import { DIFFICULTY_PRESETS } from '../data/difficulty';
+import { DIFFICULTY_PRESETS, getSimulationMetrics } from '../data/difficulty';
+import { formatOffset } from '../lib/aiSimulation';
 import { SYSTEM_INFO } from '../lib/appSettings';
 import { CloseIcon, TrashIcon } from './Icons';
 import './SimulationDrawer.css';
@@ -34,7 +35,7 @@ export function DifficultyBadge({ difficulty }: { difficulty: Simulation['diffic
 }
 
 export default function SimulationDrawer({ simulation, onClose, onDelete }: SimulationDrawerProps) {
-  const preset = DIFFICULTY_PRESETS[simulation.difficulty];
+  const preset = getSimulationMetrics(simulation);
   const events = [...simulation.events].sort((a, b) => a.minute - b.minute);
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export default function SimulationDrawer({ simulation, onClose, onDelete }: Simu
               <ol className="mini-items">
                 {events.map((event) => (
                   <li className="mini-item" key={event.id}>
-                    <span className="mini-t mono">T+{event.minute}</span>
+                    <span className="mini-t mono">T+{simulation.aiGenerated ? formatOffset(Math.round(event.minute * 60)) : event.minute}</span>
                     <div className="mini-main">
                       <span className="mini-title">{event.title}</span>
                       <span className="mini-desc">{event.description}</span>

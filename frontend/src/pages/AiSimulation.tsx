@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
+import SimulationSavedModal from '../components/SimulationSavedModal';
 import AiScenarioSetup from '../components/ai/AiScenarioSetup';
 import AiReportReview from '../components/ai/AiReportReview';
 import AiReportEditor from '../components/ai/AiReportEditor';
+import AiGenerationLoader from '../components/ai/AiGenerationLoader';
 import { AiIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '../components/Icons';
 import {
-  aiReportTitle, aiSimulationService, createAiDraft, DIFFICULTY_PRESETS, formatOffset, generationFingerprint,
-  REPORT_KIND_LABELS, reorderAiReports, templateToAiReport, validateAiReports, validateAiSettings,
+  aiReportTitle, aiSimulationService, applyScenarioExample, createAiDraft, DIFFICULTY_PRESETS, formatOffset, generationFingerprint,
+  NOISE_LABELS, REPORT_KIND_LABELS, reportCount, reorderAiReports, templateToAiReport, validateAiReports, validateAiSettings,
 } from '../lib/aiSimulation';
-import { loadAiSimulations, saveAiSimulation } from '../lib/aiSimulationStorage';
-import type { CategoryNode, LibraryTemplate } from '../lib/libraryApi';
-import type { AiSimulationDraft, AiSimulationReport, BuilderStep } from '../types/aiSimulation';
+import { deleteAiSimulation, loadAiSimulations, saveAiSimulation } from '../lib/aiSimulationStorage';
+import { createSimulation } from '../lib/api';
+import { getCategoryTree, getTemplates, type CategoryNode, type LibraryTemplate } from '../lib/libraryApi';
+import type { AiSimulationDraft, AiSimulationReport, BuilderStep, GenerationStatus } from '../types/aiSimulation';
 import type { SimulationEvent } from '../types/simulation';
 import './SelectEvents.css';
 import './AiSimulation.css';
@@ -36,26 +39,30 @@ export default function AiSimulation() {
 }
 
 function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
+  const navigate = useNavigate();
   const [, setParams] = useSearchParams();
   const [initial] = useState(() => loadDraft(draftId));
   const [draft, setDraft] = useState(initial.draft);
   const [error, setError] = useState(initial.error);
   const [notice, setNotice] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState<'chat' | 'generation' | null>(null);
+  const [busy, setBusy] = useState<'chat' | 'generation' | 'saving' | null>(null);
+  const [databaseId, setDatabaseId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [library, setLibrary] = useState<{ categories: CategoryNode[]; templates: LibraryTemplate[] }>({ categories: [], templates: [] });
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState('');
   const [editing, setEditing] = useState<AiSimulationReport | null>(null);
   const [confirmRegeneration, setConfirmRegeneration] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('queued');
+  const generationController = useRef<AbortController | null>(null);
   const mounted = useRef(true);
   const busyRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => { mounted.current = false; generationController.current?.abort(); };
   }, []);
   useEffect(() => {
     if (!dirty) return;
@@ -71,8 +78,8 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
     let active = true;
     setLibraryLoading(true);
     setLibraryError('');
-    aiSimulationService.loadLibrary()
-      .then((result) => { if (active) setLibrary(result); })
+    Promise.all([getCategoryTree(), getTemplates({})])
+      .then(([categories, templates]) => { if (active) setLibrary({ categories, templates }); })
       .catch((loadError: unknown) => {
         if (active) setLibraryError(loadError instanceof Error ? loadError.message : 'טעינת ספריית התוכן נכשלה');
       })
@@ -110,10 +117,18 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
     busyRef.current = true;
     setConfirmRegeneration(false);
     setBusy('generation');
+    setGenerationStatus('queued');
+    const controller = new AbortController();
+    generationController.current = controller;
     setError('');
     try {
-      const reports = await aiSimulationService.generateReports(draft);
-      if (mounted.current) update({ ...draft, reports, step: 2, generated_from: generationFingerprint(draft) });
+      const result = await aiSimulationService.generateReports(draft, (status) => {
+        if (mounted.current) setGenerationStatus(status);
+      }, controller.signal);
+      if (mounted.current) {
+        update({ ...draft, reports: result.reports, step: 2, generated_from: generationFingerprint(draft) });
+        setNotice('הדיווחים נוצרו בהצלחה');
+      }
     } catch (generationError) {
       if (mounted.current) setError(`יצירת הדיווחים נכשלה: ${generationError instanceof Error ? generationError.message : 'שגיאה לא צפויה'}`);
     } finally {
@@ -140,6 +155,7 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
 
   const stale = draft.generated_from !== null && draft.generated_from !== generationFingerprint(draft);
   const goTo = (step: BuilderStep) => {
+    if (busyRef.current) return;
     setError('');
     if (step > 1) {
       const errors = [...validateAiSettings(draft), ...validateAiReports(draft)];
@@ -148,21 +164,46 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
     }
     setDraft({ ...draft, step });
   };
-  const save = (status: 'draft' | 'saved') => {
+  const save = async (status: 'draft' | 'saved') => {
+    if (busyRef.current || databaseId) return;
     setError('');
     if (status === 'saved') {
       const errors = [...validateAiSettings(draft), ...validateAiReports(draft)];
       if (stale) errors.push('יש ליצור מחדש את הדיווחים בעקבות שינוי ההגדרות.');
       if (errors.length) { setError(errors.join(' ')); return; }
     }
+    busyRef.current = true;
+    setBusy('saving');
     try {
-      const saved = saveAiSimulation(draft, status);
-      setDraft(saved);
-      setDirty(false);
-      setNotice(status === 'saved' ? 'הסימולציה נשמרה מקומית. אפשר למצוא אותה בלוח הבקרה.' : 'הטיוטה נשמרה מקומית, כולל השיחה והעריכות.');
-      if (!draftId) setParams({ id: saved.simulation.id }, { replace: true });
+      if (status === 'draft') {
+        const saved = saveAiSimulation(draft, 'draft');
+        setDraft(saved);
+        setDirty(false);
+        setNotice('הטיוטה נשמרה מקומית, כולל השיחה והעריכות.');
+        if (!draftId) setParams({ id: saved.simulation.id }, { replace: true });
+      } else {
+        const result = await createSimulation({
+          title: draft.simulation.name, description: draft.simulation.description,
+          difficulty: DIFFICULTY_PRESETS[draft.simulation.difficulty].label,
+          sys: 'spectre', ai_generated: true, length_s: draft.simulation.length_s,
+          reports: draft.reports.map((report) => ({ ...report, payload: { ...report.payload, report_title: aiReportTitle(report) } })),
+        });
+        if (!mounted.current) return;
+        setDirty(false);
+        setDatabaseId(result.id);
+        if (draftId) {
+          try {
+            deleteAiSimulation(draft.simulation.id);
+          } catch (cleanupError) {
+            setError(`הסימולציה נשמרה במסד הנתונים, אך מחיקת הטיוטה המקומית נכשלה: ${cleanupError instanceof Error ? cleanupError.message : 'בדקו הרשאות אחסון.'}`);
+          }
+        }
+      }
     } catch (saveError) {
-      setError(`השמירה המקומית נכשלה: ${saveError instanceof Error ? saveError.message : 'בדקו את הרשאות האחסון בדפדפן.'}`);
+      if (mounted.current) setError(`${status === 'draft' ? 'השמירה המקומית' : 'השמירה במסד הנתונים'} נכשלה: ${saveError instanceof Error ? saveError.message : 'שגיאה לא צפויה.'}`);
+    } finally {
+      busyRef.current = false;
+      if (mounted.current) setBusy(null);
     }
   };
   const toggleTemplate = (template: LibraryTemplate, minute: number) => {
@@ -188,8 +229,15 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
     minute: 1,
   }));
 
+  if (databaseId) return (
+    <SimulationSavedModal title={draft.simulation.name}
+      difficulty={DIFFICULTY_PRESETS[draft.simulation.difficulty].label}
+      eventCount={draft.reports.length} systemName="SPECTRE" warning={error}
+      onDashboard={() => navigate('/')} onCreateAnother={() => navigate('/simulations/ai')} />
+  );
+
   return (
-    <div className="ai-builder" dir="rtl">
+    <div className="ai-builder" dir="rtl" aria-busy={busy === 'saving'}>
       <BuilderHeader
         title={draft.simulation.name}
         currentStep={draft.step}
@@ -198,15 +246,19 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
         availableStep={draft.reports.length && !stale ? 3 : 1}
         disabled={busy !== null}
         isSaved={!dirty && draftId !== null}
-        statusText={dirty ? 'שינויים שלא נשמרו' : draftId ? 'נשמר מקומית' : 'טרם נשמר'}
+        statusText={busy === 'saving' ? 'שומר…' : dirty ? 'שינויים שלא נשמרו' : draftId ? 'נשמר מקומית' : 'טרם נשמר'}
         onSave={() => save('saved')}
         onSaveDraft={() => save('draft')}
         onStepClick={goTo}
       />
       <div className="ai-main" ref={contentRef}>
-        <aside className="ai-demo-notice"><AiIcon size={18} /><div><strong>מצב הדגמה · Frontend בלבד</strong><p>השיחה, הדיווחים והספרייה במסך זה מדומים. המידע נשמר בדפדפן בלבד; אין פנייה ל-AI, שמירה בשרת או הרצת סימולציה.</p></div></aside>
+        <aside className="ai-demo-notice"><AiIcon size={18} /><div><strong>יצירת דיווחים באמצעות AI</strong><p>התיאור נשלח לשירות ה-AI רק בלחיצה על יצירה. ההגדרות נשארות בשליטתכם. הספרייה והעריכה פועלות על עותקי הסימולציה בלבד. שמירה מלאה מתבצעת במסד הנתונים; טיוטות נשמרות בדפדפן.</p></div></aside>
         {error && <div className="ai-alert" role="alert">{error}</div>}
         {notice && <div className="ai-notice" role="status">{notice}</div>}
+        {busy === 'saving' && <div className="ai-save-progress" role="status">
+          <span className="ai-save-spinner" aria-hidden="true" />
+          <div><strong>שומר את הסימולציה…</strong><p>{draft.reports.length} דיווחים · נא להמתין לסיום השמירה</p></div>
+        </div>}
         {!dirty && draftId && <div className="ai-notice">{draft.status === 'saved' ? 'סימולציה שמורה' : 'טיוטה שמורה'} · עדכון אחרון: {new Date(draft.updated_at).toLocaleString('he-IL')} · <Link to="/">ללוח הבקרה</Link></div>}
         {stale && <div className="ai-warning" role="status">ההגדרות השתנו מאז היצירה האחרונה. העריכות נשמרו במסך; יצירה מחדש תחליף את הדיווחים.</div>}
         {confirmRegeneration && <div className="ai-warning ai-confirmation" role="alert">
@@ -216,10 +268,9 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
             <button type="button" className="ai-button" onClick={() => setConfirmRegeneration(false)}>ביטול יצירה מחדש</button>
           </div>
         </div>}
-        {busy === 'generation' ? (
-          <div className="ai-panel ai-generating" role="status" aria-live="polite"><AiIcon size={32} /><h2>מרכיב דיווחי הדגמה…</h2><p>מכין את התוכן, המיקומים ואת רצף ההזרמה.</p></div>
-        ) : draft.step === 1 ? (
-          <AiScenarioSetup draft={draft} busy={busy !== null} onSend={send} onSettings={(simulation, generation) => update({ ...draft, simulation, generation })} onGenerate={requestGeneration} />
+        {draft.step === 1 ? (
+          <AiScenarioSetup draft={draft} busy={busy !== null} onSend={send} onSettings={(simulation, generation) => update({ ...draft, simulation, generation })} onGenerate={requestGeneration}
+            onExample={(example) => update(applyScenarioExample(draft, example))} />
         ) : draft.step === 2 ? (
           <>
             <AiReportReview
@@ -233,7 +284,7 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
                 }
               }}
               onRemove={(report) => update({ ...draft, reports: draft.reports.filter((item) => item.client_id !== report.client_id) })}
-              onLibrary={() => setLibraryOpen(true)} onRegenerate={requestGeneration}
+              onLibrary={() => setLibraryOpen(true)} onRegenerate={() => goTo(1)}
             />
             <div className="ai-bottom-nav">
               <button type="button" className="ai-button" onClick={() => goTo(1)}><ArrowRightIcon size={16} />חזרה להגדרות</button>
@@ -242,14 +293,14 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
           </>
         ) : (
           <section className="ai-panel" aria-labelledby="ai-review-heading">
-            <header className="ai-section-heading"><div><h2 id="ai-review-heading">סקירה ושמירה</h2><p>בדקו את פרטי התרגיל לפני השמירה המקומית.</p></div><button type="button" className="ai-button" onClick={() => goTo(1)}>עריכת הגדרות</button></header>
+            <header className="ai-section-heading"><div><h2 id="ai-review-heading">סקירה ושמירה</h2><p>בדקו את פרטי התרגיל לפני השמירה במסד הנתונים.</p></div><button type="button" className="ai-button" onClick={() => goTo(1)}>עריכת הגדרות</button></header>
             <dl className="ai-review-settings">
               <div><dt>שם</dt><dd>{draft.simulation.name}</dd></div>
               <div><dt>תיאור</dt><dd>{draft.simulation.description}</dd></div>
               <div><dt>מערכת יעד</dt><dd>SPECTRE · מציאות מדומה {draft.simulation.reality_id}</dd></div>
               <div><dt>רמת קושי</dt><dd>{DIFFICULTY_PRESETS[draft.simulation.difficulty].label}</dd></div>
               <div><dt>משך וקצב</dt><dd>{draft.simulation.length_s / 60} דקות · {draft.generation.reports_per_minute} דיווחים לדקה</dd></div>
-              <div><dt>אחוזי יצירה</dt><dd>כפולים {draft.generation.duplicate_percent}% · שגויים {draft.generation.false_percent}% · רעש {draft.generation.noise_percent}% (בעיגול למספרי דיווחים שלמים)</dd></div>
+              <div><dt>רמת רעש רקע</dt><dd>{NOISE_LABELS[draft.generation.noise_level]}</dd></div>
             </dl>
             <div className="ai-section-heading"><h3>תוכן · {draft.reports.length} דיווחים</h3><button type="button" className="ai-button" onClick={() => goTo(2)}>עריכת דיווחים</button></div>
             <p className="ai-muted">הוספה והסרה ידניות עשויות לשנות את הכמות ואת היחס בין סוגי הדיווחים.</p>
@@ -259,13 +310,14 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
               ))}
             </ol>
             <footer className="ai-actions">
-              <button type="button" className="ai-button ai-button-primary" onClick={() => save('saved')}><CheckIcon size={16} />שמירת הסימולציה</button>
-              <button type="button" className="ai-button" onClick={() => save('draft')}>שמירה כטיוטה</button>
-              <button type="button" className="ai-button" onClick={() => goTo(2)}>חזרה לבדיקה</button>
+              <button type="button" className="ai-button ai-button-primary" disabled={busy !== null} onClick={() => void save('saved')}>{busy === 'saving' ? <span className="ai-save-spinner" aria-hidden="true" /> : <CheckIcon size={16} />}{busy === 'saving' ? 'שומר…' : 'שמירת הסימולציה'}</button>
+              <button type="button" className="ai-button" disabled={busy !== null} onClick={() => void save('draft')}>שמירה כטיוטה</button>
+              <button type="button" className="ai-button" disabled={busy !== null} onClick={() => goTo(2)}>חזרה לבדיקה</button>
             </footer>
           </section>
         )}
       </div>
+      {busy === 'generation' && <AiGenerationLoader status={generationStatus} reportCount={reportCount(draft.simulation, draft.generation)} />}
       <ContentLibraryModal
         isOpen={libraryOpen} onClose={() => setLibraryOpen(false)} selectedIds={selectedLibraryIds}
         categories={library.categories} availableEvents={libraryEvents}

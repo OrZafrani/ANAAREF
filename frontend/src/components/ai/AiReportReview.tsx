@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PencilIcon, PinIcon, PlusIcon } from '../Icons';
+import { ClockIcon, PencilIcon, PinIcon, PlusIcon } from '../Icons';
 import { aiReportTitle, DIFFICULTY_PRESETS, formatOffset, REPORT_KIND_LABELS } from '../../lib/aiSimulation';
 import { getUrgency } from '../../lib/urgency';
 import AiReportDetails from './AiReportDetails';
@@ -57,7 +57,7 @@ export default function AiReportReview({ reports, busy, onEdit, onRemove, onLibr
       <header className="ai-section-heading">
         <h2 id="ai-reports-heading">דיווחים בסימולציה <span className="ai-count">{reports.length}</span></h2>
         <div className="ai-actions">
-          <button type="button" className="ai-report-text-action" disabled={busy} onClick={onRegenerate}>יצירה מחדש</button>
+          <button type="button" className="ai-report-text-action" disabled={busy} onClick={onRegenerate}>תיאור חדש ויצירה מחדש</button>
           <button type="button" className="ai-button ai-library-action" disabled={busy} onClick={onLibrary}><PlusIcon size={16} />הוספה מהספרייה</button>
         </div>
       </header>
@@ -68,7 +68,7 @@ export default function AiReportReview({ reports, busy, onEdit, onRemove, onLibr
       </div>
       <div className="ai-report-filters" role="group" aria-label="סינון לפי סוג דיווח">
         <button type="button" aria-pressed={kind === 'all'} onClick={() => { setKind('all'); setPage(1); }}>הכל ({reports.length})</button>
-        {(['original', 'duplicate', 'false', 'noise'] as const).map((value) => (
+        {(['unclassified', 'original', 'duplicate', 'false', 'noise'] as const).filter((value) => reports.some((report) => report.kind === value)).map((value) => (
           <button key={value} type="button" aria-pressed={kind === value} onClick={() => { setKind(value); setPage(1); }}>
             {REPORT_KIND_LABELS[value]} ({reports.filter((report) => report.kind === value).length})
           </button>
@@ -101,10 +101,14 @@ export default function AiReportReview({ reports, busy, onEdit, onRemove, onLibr
             }}
           >
             <div className="ai-card-topline">
-              <span className="ai-offset" dir="ltr">T+{formatOffset(report.dispatch_offset_s)}</span>
               <span className="ai-report-tag">דיווח</span>
               <span className={`ai-kind ai-kind-${report.kind}`}>{REPORT_KIND_LABELS[report.kind]}</span>
-              <span className="ai-report-tag">{report.origin === 'ai' ? 'נוצר ע״י AI' : 'עותק מהספרייה'}</span>
+              {report.origin === 'library' && <span className="ai-report-tag">עותק מהספרייה</span>}
+              <div className="ai-report-order" role="group" aria-label="עיתוי וסדר הדיווח" title="גרירה משנה את עיתוי הדיווח בסימולציה">
+              <div className="ai-report-timing" title="עיתוי ההזרמה קובע את סדר הדיווחים ברשימה">
+                <ClockIcon size={14} />
+                <span className="ai-offset" dir="ltr">T+{formatOffset(report.dispatch_offset_s)}</span>
+              </div>
               <div className="ai-reorder-controls">
                 <button type="button" className="ai-report-text-action ai-drag-handle" draggable={canReorder} disabled={!canReorder}
                   aria-label={`הזזת דיווח: ${title}`} title="גרירה לשינוי סדר"
@@ -119,6 +123,7 @@ export default function AiReportReview({ reports, busy, onEdit, onRemove, onLibr
                 ><span aria-hidden="true">⠿</span></button>
                 <button type="button" className="ai-report-text-action" disabled={!canReorder || index === 0} aria-label={`העברה למעלה: ${title}`} onClick={() => moveAdjacent(index, -1)}><span aria-hidden="true">↑</span></button>
                 <button type="button" className="ai-report-text-action" disabled={!canReorder || index === filtered.length - 1} aria-label={`העברה למטה: ${title}`} onClick={() => moveAdjacent(index, 1)}><span aria-hidden="true">↓</span></button>
+              </div>
               </div>
             </div>
             <h3>{title}</h3>
