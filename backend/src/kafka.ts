@@ -1,16 +1,8 @@
-import kafkaJavascript from '@confluentinc/kafka-javascript';
 import { config } from './config.js';
+import { createKafka } from './kafkaClient.js';
 import type { KafkaMessage, ReportPublisher } from './scheduler/types.js';
 
-const { Kafka, logLevel } = kafkaJavascript.KafkaJS;
-
-const kafka = new Kafka({
-  kafkaJS: {
-    brokers: config.kafka.brokers,
-    clientId: config.kafka.clientId,
-    logLevel: logLevel.WARN,
-  },
-});
+const kafka = createKafka();
 
 const producer = kafka.producer({
   'message.timeout.ms': config.kafka.deliveryTimeoutMs,

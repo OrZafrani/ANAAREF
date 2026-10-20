@@ -5,13 +5,11 @@
  *   npm run kafka:consume -w backend                    new messages only
  *   npm run kafka:consume -w backend -- --from-beginning
  */
-import kafkaJavascript from '@confluentinc/kafka-javascript';
 import { config } from '../config.js';
-
-const { Kafka, logLevel } = kafkaJavascript.KafkaJS;
+import { createKafka } from '../kafkaClient.js';
 
 const fromBeginning = process.argv.includes('--from-beginning');
-const kafka = new Kafka({ kafkaJS: { brokers: config.kafka.brokers, logLevel: logLevel.WARN } });
+const kafka = createKafka();
 const consumer = kafka.consumer({
   kafkaJS: { groupId: `cobra-mock-consumer-${process.pid}`, fromBeginning },
 });

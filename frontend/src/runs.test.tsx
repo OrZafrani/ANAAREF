@@ -68,28 +68,71 @@ describe('running a simulation from the dashboard', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('starts a run from a card and shows its progress', async () => {
+  it('asks for confirmation, then starts the run and shows its progress', async () => {
     const fetchMock = mockBackend({ simulations: [simulation()], runs: [] });
     renderHome();
 
     fireEvent.click(await runButton());
 
+    const dialog = screen.getByRole('dialog', { name: 'להריץ את „מטח פתיחה"?' });
+    expect(dialog).toHaveTextContent('SPECTRE');
+    expect(dialog).toHaveTextContent('1 דיווחים');
+    expect(dialog).toHaveTextContent('30 דק׳ · רמה בינוני');
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/simulations/s1/runs', { method: 'POST' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'אישור והרצה' }));
+
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/simulations/s1/runs', { method: 'POST' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const progress = await screen.findByRole('progressbar', { name: 'התקדמות הריצה' });
     expect(progress).toHaveAttribute('aria-valuemax', '5');
     expect(screen.getByText(/נשלחו/).closest('.run-progress-label')).toHaveTextContent('נשלחו 0 מתוך 5 דיווחים');
     expect(screen.getByText('רצה כעת')).toBeInTheDocument();
   });
 
-  it('stops the active run after confirmation', async () => {
+  it('does nothing when the run confirmation is cancelled', async () => {
+    const fetchMock = mockBackend({ simulations: [simulation()], runs: [] });
+    renderHome();
+
+    fireEvent.click(await runButton());
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ביטול' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/simulations/s1/runs', { method: 'POST' });
+  });
+
+  it('stops the active run after confirming in the dialog', async () => {
     const fetchMock = mockBackend({ simulations: [simulation()], runs: [run()] });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const nativeConfirm = vi.spyOn(window, 'confirm');
     renderHome();
 
     fireEvent.click(await screen.findByRole('button', { name: 'עצירת הריצה' }));
 
+    const dialog = screen.getByRole('dialog', { name: 'לעצור את „מטח פתיחה"?' });
+    expect(dialog).toHaveTextContent('נשלחו 2 מתוך 5');
+    // Cancel starts focused, so Enter doesn't stop the run by accident.
+    expect(within(dialog).getByRole('button', { name: 'ביטול' })).toHaveFocus();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'עצירת הריצה' }));
+
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/simulations/s1/runs/r1/stop', { method: 'POST' }));
     await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument());
+    expect(nativeConfirm).not.toHaveBeenCalled();
+  });
+
+  it('closes only the dialog on Escape, leaving the drawer open', async () => {
+    mockBackend({ simulations: [simulation()], runs: [] });
+    renderHome();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'מטח פתיחה' }));
+    const drawer = screen.getByRole('dialog', { name: 'מטח פתיחה' });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'הרצה' }));
+    expect(screen.getByRole('dialog', { name: 'להריץ את „מטח פתיחה"?' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'להריץ את „מטח פתיחה"?' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'מטח פתיחה' })).toBeInTheDocument();
   });
 
   it('explains instead of starting while another simulation runs', async () => {
@@ -106,13 +149,16 @@ describe('running a simulation from the dashboard', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('/api/simulations/s1/runs', { method: 'POST' });
   });
 
-  it('shows the backend refusal in Hebrew', async () => {
+  it('keeps the dialog open with the backend refusal in Hebrew', async () => {
     mockBackend({ simulations: [simulation()], runs: [], startStatus: 409, startError: 'Another simulation already has a started run' });
     renderHome();
 
     fireEvent.click(await runButton());
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'אישור והרצה' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('סימולציה אחרת כבר רצה');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('סימולציה אחרת כבר רצה');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('shows how far a finished run got, without an in-progress estimate', async () => {

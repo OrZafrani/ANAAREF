@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import NewSimulationModal from '../components/NewSimulationModal';
 import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
+import ConfirmDialog from '../components/ConfirmDialog';
 import type { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
@@ -12,7 +13,6 @@ import { ChevronDownIcon, PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from
 import './Home.css';
 
 const DELETE_CONFIRM = 'האם אתה בטוח שברצונך למחוק את הסימולציה?';
-const STOP_CONFIRM = 'לעצור את הריצה? דיווחים שכבר נשלחו לא יבוטלו.';
 
 // Refresh runs often while one is active, so progress stays current.
 const ACTIVE_POLL_MS = 2_000;
@@ -66,10 +66,13 @@ export default function Home() {
   const [activeRun, setActiveRun] = useState<SimulationRun | null>(null);
   const [runsLoading, setRunsLoading] = useState(true);
   const [runsError, setRunsError] = useState(false);
-  // Shown where the action was taken: a start error on its card, a stop error on the active-run card.
-  const [runActionError, setRunActionError] = useState<
-    { action: 'start' | 'stop'; simulationId: string; message: string } | null
+  // Why a clicked simulation can't run, shown on its card (and in its drawer).
+  const [runActionError, setRunActionError] = useState<{ simulationId: string; message: string } | null>(null);
+  // The run or stop waiting for confirmation, and the error of its request, if any.
+  const [confirming, setConfirming] = useState<
+    { kind: 'start'; simulation: Simulation } | { kind: 'stop'; run: SimulationRun } | null
   >(null);
+  const [confirmError, setConfirmError] = useState('');
   // 'start:<simulationId>' or 'stop' while that request is in flight.
   const [pendingRunAction, setPendingRunAction] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -179,35 +182,41 @@ export default function Home() {
     }
   };
 
-  const handleStartRun = async (simulation: Simulation) => {
+  /** Run button: explains on the card why it can't run, or asks for confirmation. */
+  const handleStartRun = (simulation: Simulation) => {
     if (pendingRunAction !== null) return;
     const blocked = runBlockReason(simulation, activeRun);
     if (blocked) {
-      setRunActionError({ action: 'start', simulationId: simulation.id, message: blocked });
+      setRunActionError({ simulationId: simulation.id, message: blocked });
       return;
     }
     setRunActionError(null);
-    setPendingRunAction(`start:${simulation.id}`);
-    try {
-      await startRun(simulation.id);
-    } catch (startError) {
-      setRunActionError({ action: 'start', simulationId: simulation.id, message: runErrorMessage(startError, 'start') });
-    } finally {
-      // Also after a failure: a 409 means another run started meanwhile.
-      await refreshRuns();
-      setPendingRunAction(null);
-    }
+    setConfirmError('');
+    setConfirming({ kind: 'start', simulation });
   };
 
-  const handleStopRun = async (run: SimulationRun) => {
-    if (!window.confirm(STOP_CONFIRM)) return;
-    setRunActionError(null);
-    setPendingRunAction('stop');
+  const handleStopRun = (run: SimulationRun) => {
+    if (pendingRunAction !== null) return;
+    setConfirmError('');
+    setConfirming({ kind: 'stop', run });
+  };
+
+  const closeConfirm = useCallback(() => setConfirming(null), []);
+
+  /** Sends the confirmed start or stop. On failure the dialog stays open with the reason. */
+  const handleConfirm = async () => {
+    if (!confirming) return;
+    const action = confirming.kind;
+    setConfirmError('');
+    setPendingRunAction(action === 'start' ? `start:${confirming.simulation.id}` : 'stop');
     try {
-      await stopRun(run.simulation_id, run.id);
-    } catch (stopError) {
-      setRunActionError({ action: 'stop', simulationId: run.simulation_id, message: runErrorMessage(stopError, 'stop') });
+      if (action === 'start') await startRun(confirming.simulation.id);
+      else await stopRun(confirming.run.simulation_id, confirming.run.id);
+      setConfirming(null);
+    } catch (runError) {
+      setConfirmError(runErrorMessage(runError, action));
     } finally {
+      // Also after a failure: a 409 means another run started, or this one ended, meanwhile.
       await refreshRuns();
       setPendingRunAction(null);
     }
@@ -234,7 +243,6 @@ export default function Home() {
 
       <section className="dash-sec" aria-labelledby="active-title">
         <h2 className="dash-sec-title" id="active-title">סימולציה פעילה</h2>
-        {runActionError?.action === 'stop' && <p className="run-error" role="alert">{runActionError.message}</p>}
         {activeRun ? (
           <div className="card active-run-card">
             <div className="active-run-head">
@@ -394,7 +402,7 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  {runActionError?.action === 'start' && runActionError.simulationId === sim.id && (
+                  {runActionError?.simulationId === sim.id && (
                     <p className="sc-run-error" role="alert">{runActionError.message}</p>
                   )}
                 </article>
@@ -495,6 +503,60 @@ export default function Home() {
           onStop={handleStopRun}
         />
       )}
+
+      {confirming?.kind === 'start' && (() => {
+        const sim = confirming.simulation;
+        const target = SYSTEM_INFO[sim.sys ?? 'spectre'];
+        const durationMin = DIFFICULTY_PRESETS[sim.difficulty]?.durationMin;
+        return (
+          <ConfirmDialog
+            eyebrow="הרצת סימולציה"
+            title={`להריץ את „${sim.title}"?`}
+            rows={[
+              { label: 'מערכת יעד', value: <span className="badge b-sys">{target.name}</span> },
+              { label: 'תוכן', value: <><span className="mono">{sim.events.length}</span> {target.unitItems}</> },
+              { label: 'משך ורמה', value: <>{durationMin != null ? <><span className="mono">{durationMin}</span> דק׳ · </> : null}רמה {sim.difficulty}</> },
+            ]}
+            confirmLabel="אישור והרצה"
+            confirmIcon={<PlayCircleIcon size={16} />}
+            variant="run"
+            busy={pendingRunAction !== null}
+            busyLabel="מפעיל…"
+            error={confirmError}
+            onConfirm={handleConfirm}
+            onCancel={closeConfirm}
+          >
+            הסימולציה תישלח מיד ל-{target.name}
+            {durationMin != null ? `, וצפויה להסתיים בעוד ${durationMin} דק׳ מרגע השליחה` : ''}.
+            {' '}עד לסיום המשוער לא ניתן יהיה להריץ סימולציה נוספת.
+          </ConfirmDialog>
+        );
+      })()}
+
+      {confirming?.kind === 'stop' && (() => {
+        // Prefer the latest poll, so the progress shown is current.
+        const run = activeRun?.id === confirming.run.id ? activeRun : confirming.run;
+        return (
+          <ConfirmDialog
+            eyebrow="עצירת ריצה"
+            title={`לעצור את „${run.simulation_name}"?`}
+            rows={[
+              { label: 'מערכת יעד', value: <span className="badge b-sys">{runTargetLabel(run.target_system)}</span> },
+              { label: 'התקדמות', value: <>נשלחו <span className="mono">{run.dispatched_count}</span> מתוך <span className="mono">{run.report_count}</span></> },
+              { label: 'זמן ריצה', value: runDuration(run, now) },
+            ]}
+            confirmLabel="עצירת הריצה"
+            variant="danger"
+            busy={pendingRunAction !== null}
+            busyLabel="עוצר…"
+            error={confirmError}
+            onConfirm={handleConfirm}
+            onCancel={closeConfirm}
+          >
+            דיווחים שכבר נשלחו לא יבוטלו. הריצה תסומן כ״נעצרה״ ולא ניתן יהיה להמשיך אותה.
+          </ConfirmDialog>
+        );
+      })()}
     </div>
   );
 }
