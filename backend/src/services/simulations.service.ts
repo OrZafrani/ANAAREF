@@ -7,7 +7,7 @@ const xxhashPromise = xxhash();
 const REALITY_ID = 1;
 const REPORT_PLATFORM = 'cobra-manual';
 const EVENT_CATEGORIES = new Set(['מבצעי', 'התראה', 'תקלה', 'חירום', 'תקשורת']);
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface SimulationEventInput {
   id: string;
@@ -28,16 +28,19 @@ const DIFFICULTY_SETTINGS = {
   קל: { databaseValue: 'easy', lengthSeconds: 20 * 60 },
   בינוני: { databaseValue: 'medium', lengthSeconds: 30 * 60 },
   קשה: { databaseValue: 'hard', lengthSeconds: 45 * 60 },
+  מומחה: { databaseValue: 'expert', lengthSeconds: 60 * 60 },
 } as const;
 
 const SIMULATION_SELECT = `
   SELECT s.id,
          s.name AS title,
          s.description,
-         CASE s.difficulty
+         CASE s.difficulty::text
            WHEN 'easy' THEN 'קל'
            WHEN 'medium' THEN 'בינוני'
            WHEN 'hard' THEN 'קשה'
+           WHEN 'expert' THEN 'מומחה'
+           ELSE s.difficulty::text
          END AS difficulty,
          s.created_at AS "createdAt",
          COALESCE(

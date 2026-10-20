@@ -1,15 +1,24 @@
 import { DifficultyLevel, Simulation, SimulationEvent } from '../types/simulation';
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+export const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
 
-  if (!response.ok) {
-    const result = await response.json().catch(() => null);
-    throw new Error(result?.error ?? 'The request failed.');
-  }
+function apiUrl(path: string): string {
+  if (!API_BASE) return path;
+  return `${String(API_BASE).replace(/\/$/, '')}${path}`;
+}
+
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(apiUrl(url), init);
 
   if (response.status === 204) return undefined as T;
-  return response.json();
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error((result as any)?.error ?? 'The request failed.');
+  }
+
+  return result as T;
 }
 
 export async function getHealth(): Promise<any> {

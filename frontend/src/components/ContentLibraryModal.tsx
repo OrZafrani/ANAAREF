@@ -18,10 +18,12 @@ interface ContentLibraryModalProps {
   selectedIds: Set<string>;
   onToggle: (event: SimulationEvent) => void;
   onAddCustom: (event: SimulationEvent) => void;
+  isLoading?: boolean;
+  totalCount?: number;
 }
 
 export default function ContentLibraryModal(props: ContentLibraryModalProps) {
-  const { isOpen, onClose, availableEvents, selectedIds, onToggle, onAddCustom } = props;
+  const { isOpen, onClose, availableEvents, selectedIds, onToggle, onAddCustom, isLoading, totalCount } = props;
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'הכל' | EventCategory>('הכל');
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -81,7 +83,11 @@ export default function ContentLibraryModal(props: ContentLibraryModalProps) {
         <div className="library-modal-header">
           <div className="library-modal-header-text">
             <h2>ספריית התוכן</h2>
-            <p>בחר אירועים מהמאגר המבצעי לשיבוץ במהלך הסימולציה</p>
+            <p>
+              {typeof totalCount === 'number'
+                ? `${totalCount} דיווחים מהמאגר (${availableEvents.length} מוצגים)`
+                : 'בחר אירועים מהמאגר המבצעי לשיבוץ במהלך הסימולציה'}
+            </p>
           </div>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="סגור חלון">
             <CloseIcon size={16} />
@@ -112,9 +118,13 @@ export default function ContentLibraryModal(props: ContentLibraryModalProps) {
           </div>
         </div>
         <div className="library-modal-body">
-          {filtered.length === 0 ? (
+          {isLoading ? (
             <div className="empty-selected-box">
-              <p>לא נמצאו אירועים התואמים את החיפוש</p>
+              <p role="status">טוען דיווחים מהמאגר...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="empty-selected-box">
+              <p>לא נמצאו דיווחים בספריית התוכן. נסו לשנות חיפוש או סינון.</p>
             </div>
           ) : (
             filtered.map((event) => {

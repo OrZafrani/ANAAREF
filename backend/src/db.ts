@@ -18,18 +18,49 @@ defaults.parseInputDatesAsUTC = true;
 
 // bigint (report_id) is left as a string: xxhash64 values exceed Number.MAX_SAFE_INTEGER.
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
+function sanitizeConnectionString(raw: string): { connectionString: string; ssl: { rejectUnauthorized: false } | undefined } {
+  // The local .env may contain libpq/ODBC-style query params
+  // (e.g. ?sslmode=disable&uselibpqcompat=true) which node-pg only partly understands.
+  // Normalize them: drop ODBC-only flags, and translate sslmode into a pg `ssl` option
+  // (self-signed cloud certs need rejectUnauthorized:false).
+  try {
+    const url = new URL(raw);
+    url.searchParams.delete('uselibpqcompat');
+    const sslmode = (url.searchParams.get('sslmode') ?? '').toLowerCase();
+    url.searchParams.delete('sslmode');
+    // Drop any other unknown params that node-pg would treat as config.
+    const supported = new Set([
+      'host', 'port', 'dbname', 'user', 'password',
+      'connectionTimeoutMillis', 'idleTimeoutMillis', 'max',
+      'ssl', 'application_name',
+    ]);
+    for (const key of [...url.searchParams.keys()]) {
+      if (!supported.has(key)) url.searchParams.delete(key);
+    }
+    const needsSsl = sslmode === 'require' || sslmode === 'prefer' ||
+      sslmode === 'verify-ca' || sslmode === 'verify-full' ||
+      url.port === '15432';
+    return {
+      connectionString: url.toString(),
+      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+    };
+  } catch {
+    return { connectionString: raw, ssl: undefined };
+  }
+}
+
+const rawConnectionString = process.env.DATABASE_URL;
+if (!rawConnectionString) {
   throw new Error('DATABASE_URL is required. Set it in backend/.env before starting the API.');
 }
 
+const { connectionString, ssl } = sanitizeConnectionString(rawConnectionString);
+
 export const db = new Pool({
   connectionString,
+  ...(ssl ? { ssl } : {}),
   max: Number(process.env.DB_POOL_MAX) || 10,
   connectionTimeoutMillis: Number(process.env.DB_TIMEOUT_MS) || 5000,
-  // ssl: {
-  //   rejectUnauthorized: false,
-  // },
 });
 
 db.on('error', (error: Error & { code?: string }) => {
@@ -38,3 +69,4 @@ db.on('error', (error: Error & { code?: string }) => {
     message: error.message,
   });
 });
+

@@ -154,12 +154,36 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('נא להזין שם לסימולציה')).toBeInTheDocument();
   });
 
-  it('renders events selection step 2 and tracks amount of selected events', () => {
+  it('renders events selection step 2 and tracks amount of selected events', async () => {
     const testState = {
       title: 'מטח פתיחה — עוטף עזה',
       description: 'תרגול תרחיש תגובה מהירה',
       difficulty: 'קשה' as const,
     };
+    // DB-driven library: categories tree + report_templates
+    global.fetch = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/categories/tree')) {
+        return { ok: true, status: 200, json: async () => [] };
+      }
+      if (String(url).includes('/api/templates')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [{
+            id: 'tpl-1',
+            category_id: 'cat-1',
+            sub_category_id: null,
+            category_name: 'מבצעי',
+            sub_category_name: null,
+            report_title: 'זיהוי תנועה חשודה בגדר המערכת',
+            original_content: 'חיישני הגדר המערבית זיהו תנועה חריגה.',
+            matches: ['התראה'],
+            collected_at: '2026-10-19T10:00:00.000Z',
+          }],
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as any;
 
     render(
       <MemoryRouter initialEntries={[{ pathname: '/simulations/events', state: testState }]}>
@@ -178,11 +202,12 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('עדיין לא נוסף תוכן')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /הוספה מהספרייה/i })).toBeInTheDocument();
 
-    // Open library modal and add an event from catalog
+    // Wait for DB templates to load, then open library modal and add an event
+    expect(await screen.findByText(/דיווחים זמינים מספריית התוכן/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     expect(screen.getByText('ספריית התוכן')).toBeInTheDocument();
 
-    const addButtons = screen.getAllByRole('button', { name: /הוסף לסימולציה/i });
+    const addButtons = await screen.findAllByRole('button', { name: /הוסף לסימולציה/i });
     expect(addButtons.length).toBeGreaterThan(0);
     fireEvent.click(addButtons[0]);
 
@@ -194,10 +219,30 @@ describe('Simulation Flow - Mockup Alignment', () => {
 
   it('saves a simulation and selected events through the API', async () => {
     const createdAt = '2026-10-19T10:00:00.000Z';
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 'database-simulation-id', createdAt }),
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/categories/tree')) {
+        return { ok: true, status: 200, json: async () => [] };
+      }
+      if (String(url).includes('/api/templates')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [{
+            id: 'tpl-1',
+            category_id: 'cat-1',
+            sub_category_id: null,
+            category_name: 'מבצעי',
+            sub_category_name: null,
+            report_title: 'זיהוי תנועה חשודה בגדר המערכת',
+            original_content: 'חיישני הגדר המערבית זיהו תנועה חריגה.',
+            matches: ['התראה'],
+            collected_at: '2026-10-19T10:00:00.000Z',
+          }],
+        };
+      }
+      return { ok: true, status: 201, json: async () => ({ id: 'database-simulation-id', createdAt }) };
     });
+    global.fetch = fetchMock as any;
     const testState = {
       title: 'תרגיל שמור',
       description: 'תיאור תרגיל',
@@ -212,8 +257,10 @@ describe('Simulation Flow - Mockup Alignment', () => {
       </MemoryRouter>
     );
 
+    // Wait for DB library to load, then pick the template event
+    expect(await screen.findByText(/דיווחים זמינים מספריית התוכן/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: /הוסף לסימולציה/i })[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: /הוסף לסימולציה/i }))[0]);
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
     fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
 
@@ -221,8 +268,9 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/simulations', expect.objectContaining({
       method: 'POST',
     }));
+    const postCall = vi.mocked(global.fetch).mock.calls.find((call) => String(call[0]).includes('/api/simulations'));
     const requestBody = JSON.parse(
-      vi.mocked(global.fetch).mock.calls[0][1]?.body as string,
+      (postCall?.[1] as any)?.body as string,
     );
     expect(requestBody.events).toHaveLength(1);
     expect(requestBody.events[0].title).toBe('זיהוי תנועה חשודה בגדר המערכת');
