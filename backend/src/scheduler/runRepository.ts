@@ -64,7 +64,7 @@ export const runRepository: SchedulerStore = {
 
   async listRuns(simulationId) {
     const result = await db.query<SimulationRunSummary>(
-      `SELECT r.*, s.name AS simulation_name, s.target_system
+      `SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s
        FROM simulation_runs r
        JOIN simulations s ON s.id = r.simulation_id
        WHERE ($1::uuid IS NULL OR r.simulation_id = $1)
@@ -76,7 +76,7 @@ export const runRepository: SchedulerStore = {
 
   async getStartedRun() {
     const result = await db.query<SimulationRunSummary>(
-      `SELECT r.*, s.name AS simulation_name, s.target_system
+      `SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s
        FROM simulation_runs r
        JOIN simulations s ON s.id = r.simulation_id
        WHERE r.status = 'started'

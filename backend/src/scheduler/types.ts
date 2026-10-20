@@ -23,6 +23,7 @@ export interface SimulationRun {
 export interface SimulationRunSummary extends SimulationRun {
   simulation_name: string;
   target_system: 'specter' | 'combat';
+  simulation_length_s: number;
 }
 
 /** The fields startRun checks before it creates a run. */

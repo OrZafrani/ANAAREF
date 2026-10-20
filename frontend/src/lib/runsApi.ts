@@ -5,6 +5,7 @@ export interface SimulationRun {
   simulation_id: string;
   simulation_name: string;
   target_system: 'specter' | 'combat';
+  simulation_length_s: number;
   started_at: string;
   completed_at: string | null;
   status: RunStatus;
