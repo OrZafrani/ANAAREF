@@ -280,6 +280,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     // Check count and selection state
     expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
     expect(screen.getByText('דקה 23')).toBeInTheDocument();
+    expect(screen.getAllByText('דחיפות: קריטי')).toHaveLength(2);
     const reportCheckbox = screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ });
     expect(reportCheckbox).toBeChecked();
     fireEvent.click(reportCheckbox);
@@ -288,6 +289,10 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
+    expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
+    expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
   });
   it('saves a simulation and selected events through the API', async () => {
     const createdAt = '2026-10-19T10:00:00.000Z';

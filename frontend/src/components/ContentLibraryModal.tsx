@@ -213,7 +213,7 @@ export default function ContentLibraryModal({
                         {[libraryEvent.city, libraryEvent.country].filter(Boolean).join(' · ') || 'אזור לא דווח'}
                       </span>
                       <span className={`library-report-urgency ${urgency.level}`}>
-                        {urgency.level === 'unknown' ? 'לא דווחה רמת דחיפות' : `דחיפות: ${urgency.label}`}
+                        דחיפות: {urgency.label}
                       </span>
                       <span className="library-report-minute">
                         דקה בסימולציה: {libraryEvent.minute}

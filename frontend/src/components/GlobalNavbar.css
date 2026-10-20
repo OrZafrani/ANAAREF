@@ -28,6 +28,7 @@
   height: 44px;
   flex: none;
   object-fit: contain;
+  transform: scale(2);
 }
 
 .brand-text-block {

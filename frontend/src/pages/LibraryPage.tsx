@@ -322,7 +322,6 @@ export default function LibraryPage() {
               <div className="template-grid">
                 {visibleTemplates.map((template) => {
                   const risk = getUrgency(template.threat_level);
-                  const riskClass = risk.level === 'critical' ? 'r-imm' : risk.level === 'unknown' ? 'r-unk' : `r-${risk.level === 'medium' ? 'med' : risk.level}`;
                   const location = [template.city, template.country].filter(Boolean).join(' · ');
                   return <article className="card template-card" key={template.id} onClick={() => setTemplateDialog({ mode: 'view', template })}>
                     <div className="card-tags">
@@ -340,7 +339,7 @@ export default function LibraryPage() {
                     <div className="facts">
                       <span className="fact"><PinIcon size={15} /><span className={location ? '' : 'unk'}>{location || 'מיקום לא דווח'}</span></span>
                       <span className="fact"><ClockIcon size={15} />התרחשות {new Date(template.happened_at ?? template.collected_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className={`risk ${riskClass}`}>{risk.level === 'unknown' ? 'דחיפות: לא ידועה' : `דחיפות: ${risk.label}`}</span>
+                      <span className={`risk r-${risk.level}`}>דחיפות: {risk.label}</span>
                     </div>
                     <div className="facts">
                       <span className={`cas-side cas-blue ${template.blue_injured_count == null ? 'unk' : ''}`}><i className="side-dot" aria-hidden="true" /><b>כוחותינו:</b> {template.blue_injured_count ?? 'לא ידוע'}</span>

@@ -323,10 +323,6 @@
   text-underline-offset: 3px;
 }
 
-.r-unk {
-  color: var(--muted);
-}
-
 .cas-side {
   display: inline-flex;
   align-items: center;

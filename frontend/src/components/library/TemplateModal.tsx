@@ -170,7 +170,7 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
             <div className="detail-badges">
               <span className="platform-tag">{template.platform}</span>
               <span className={`threat-tag threat-${urgency?.level ?? 'unknown'}`}>
-                {urgency?.level === 'unknown' ? 'דחיפות לא ידועה' : `דחיפות: ${urgency?.label} (${displayValue(template.threat_level)})`}
+                דחיפות: {urgency?.label} ({displayValue(template.threat_level)})
               </span>
               <span>{template.is_official ? 'מקור רשמי' : 'מקור פתוח'}</span>
             </div>

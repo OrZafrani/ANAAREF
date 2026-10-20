@@ -6,6 +6,7 @@ import { SimulationFormData, SimulationEvent } from '../types/simulation';
 import { createSimulation } from '../lib/api';
 import { getCategoryTree, getTemplates, type CategoryNode, type LibraryTemplate } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
+import { getUrgency } from '../lib/urgency';
 import {
   CheckIcon,
   ArrowRightIcon,
@@ -331,6 +332,8 @@ export default function SelectEvents() {
                           <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
+                          <span>•</span>
+                          <span>דחיפות: {getUrgency(evt.threatLevel).label}</span>
                         </div>
                       </div>
                       <button
@@ -428,6 +431,8 @@ export default function SelectEvents() {
                           <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
+                          <span>•</span>
+                          <span>דחיפות: {getUrgency(evt.threatLevel).label}</span>
                         </div>
                       </div>
                     </div>
