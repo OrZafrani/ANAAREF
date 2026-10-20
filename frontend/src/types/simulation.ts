@@ -6,6 +6,7 @@ export interface SimulationEvent {
   id: string;
   title: string;
   category: EventCategory;
+  categoryName?: string;
   categoryId?: string;
   subCategory?: string;
   subCategoryId?: string | null;
