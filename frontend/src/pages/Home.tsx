@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import NewSimulationModal from '../components/NewSimulationModal';
 import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
@@ -6,11 +6,17 @@ import type { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
-import { getRunningSimulation, getSimulationRuns, SimulationRun } from '../lib/runsApi';
+import { getRunningSimulation, getSimulationRuns, startRun, stopRun, SimulationRun } from '../lib/runsApi';
+import { formatRelativeRunTime, runBlockReason, runDuration, runErrorMessage, runStatusLabel } from '../lib/runFormat';
 import { ChevronDownIcon, PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
 
 const DELETE_CONFIRM = 'האם אתה בטוח שברצונך למחוק את הסימולציה?';
+const STOP_CONFIRM = 'לעצור את הריצה? דיווחים שכבר נשלחו לא יבוטלו.';
+
+// Refresh runs often while one is active, so progress stays current.
+const ACTIVE_POLL_MS = 2_000;
+const IDLE_POLL_MS = 10_000;
 
 function hasDraft() {
   try {
@@ -18,16 +24,6 @@ function hasDraft() {
   } catch {
     return false;
   }
-}
-
-function runDuration(run: SimulationRun, now: number) {
-  const end = run.completed_at ? new Date(run.completed_at).getTime() : now;
-  const startedAt = new Date(run.started_at).getTime();
-  if (Number.isNaN(startedAt) || Number.isNaN(end)) return '—';
-  const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes > 0 ? `${minutes} דק׳ ${seconds} שנ׳` : `${seconds} שנ׳`;
 }
 
 function plannedDuration(seconds: number) {
@@ -39,15 +35,6 @@ function plannedDuration(seconds: number) {
   return `${Math.max(0, seconds)} שנ׳`;
 }
 
-function runStatusLabel(status: SimulationRun['status']) {
-  return {
-    started: 'פעילה',
-    completed: 'הושלמה',
-    stopped: 'נעצרה',
-    failed: 'נכשלה',
-  }[status];
-}
-
 function runTargetLabel(target: SimulationRun['target_system']) {
   return target === 'specter' ? SYSTEM_INFO.spectre.name : SYSTEM_INFO.cm.name;
 }
@@ -55,21 +42,6 @@ function runTargetLabel(target: SimulationRun['target_system']) {
 function formatRunStart(iso: string) {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('he-IL');
-}
-
-function formatRelativeRunTime(iso: string, now: number) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  const today = new Date(now);
-  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const dayLabel = dateDay === todayDay
-    ? 'היום'
-    : dateDay === todayDay - 24 * 60 * 60 * 1000
-      ? 'אתמול'
-      : date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
-  const timeLabel = date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-  return `${dayLabel}, ${timeLabel}`;
 }
 
 function estimatedEnd(run: SimulationRun) {
@@ -94,6 +66,12 @@ export default function Home() {
   const [activeRun, setActiveRun] = useState<SimulationRun | null>(null);
   const [runsLoading, setRunsLoading] = useState(true);
   const [runsError, setRunsError] = useState(false);
+  // Shown where the action was taken: a start error on its card, a stop error on the active-run card.
+  const [runActionError, setRunActionError] = useState<
+    { action: 'start' | 'stop'; simulationId: string; message: string } | null
+  >(null);
+  // 'start:<simulationId>' or 'stop' while that request is in flight.
+  const [pendingRunAction, setPendingRunAction] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const draftOpen = hasDraft();
 
@@ -127,31 +105,28 @@ export default function Home() {
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    const refreshRuns = async () => {
-      const [runsResult, activeResult] = await Promise.allSettled([
-        getSimulationRuns(),
-        getRunningSimulation(),
-      ]);
-      if (!active) return;
-      if (runsResult.status === 'fulfilled') {
-        setRecentRuns(runsResult.value);
-        setRunsError(false);
-      } else {
-        setRunsError(true);
-      }
-      if (activeResult.status === 'fulfilled') setActiveRun(activeResult.value);
-      setRunsLoading(false);
-      setNow(Date.now());
-    };
-    void refreshRuns();
-    const interval = window.setInterval(() => void refreshRuns(), 10_000);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
+  const refreshRuns = useCallback(async () => {
+    const [runsResult, activeResult] = await Promise.allSettled([
+      getSimulationRuns(),
+      getRunningSimulation(),
+    ]);
+    if (runsResult.status === 'fulfilled') {
+      setRecentRuns(runsResult.value);
+      setRunsError(false);
+    } else {
+      setRunsError(true);
+    }
+    if (activeResult.status === 'fulfilled') setActiveRun(activeResult.value);
+    setRunsLoading(false);
+    setNow(Date.now());
   }, []);
+
+  const isRunActive = activeRun !== null;
+  useEffect(() => {
+    void refreshRuns();
+    const interval = window.setInterval(() => void refreshRuns(), isRunActive ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+    return () => window.clearInterval(interval);
+  }, [refreshRuns, isRunActive]);
 
   const runsFromLastDay = useMemo(() => {
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
@@ -204,6 +179,40 @@ export default function Home() {
     }
   };
 
+  const handleStartRun = async (simulation: Simulation) => {
+    if (pendingRunAction !== null) return;
+    const blocked = runBlockReason(simulation, activeRun);
+    if (blocked) {
+      setRunActionError({ action: 'start', simulationId: simulation.id, message: blocked });
+      return;
+    }
+    setRunActionError(null);
+    setPendingRunAction(`start:${simulation.id}`);
+    try {
+      await startRun(simulation.id);
+    } catch (startError) {
+      setRunActionError({ action: 'start', simulationId: simulation.id, message: runErrorMessage(startError, 'start') });
+    } finally {
+      // Also after a failure: a 409 means another run started meanwhile.
+      await refreshRuns();
+      setPendingRunAction(null);
+    }
+  };
+
+  const handleStopRun = async (run: SimulationRun) => {
+    if (!window.confirm(STOP_CONFIRM)) return;
+    setRunActionError(null);
+    setPendingRunAction('stop');
+    try {
+      await stopRun(run.simulation_id, run.id);
+    } catch (stopError) {
+      setRunActionError({ action: 'stop', simulationId: run.simulation_id, message: runErrorMessage(stopError, 'stop') });
+    } finally {
+      await refreshRuns();
+      setPendingRunAction(null);
+    }
+  };
+
   const clearFilters = () => {
     setSearch('');
     setDifficulty('all');
@@ -225,11 +234,38 @@ export default function Home() {
 
       <section className="dash-sec" aria-labelledby="active-title">
         <h2 className="dash-sec-title" id="active-title">סימולציה פעילה</h2>
+        {runActionError?.action === 'stop' && <p className="run-error" role="alert">{runActionError.message}</p>}
         {activeRun ? (
-          <div className="card active-empty active-run-card">
-            <PlayCircleIcon size={18} />
-            <span><strong>{activeRun.simulation_name}</strong> · {runTargetLabel(activeRun.target_system)} · התחילה {formatRunStart(activeRun.started_at)}</span>
-            <span className="run-status status-started">פעילה · {runDuration(activeRun, now)}</span>
+          <div className="card active-run-card">
+            <div className="active-run-head">
+              <PlayCircleIcon size={18} />
+              <span><strong>{activeRun.simulation_name}</strong> · {runTargetLabel(activeRun.target_system)} · התחילה {formatRunStart(activeRun.started_at)}</span>
+              <span className="run-status status-started">פעילה · {runDuration(activeRun, now)}</span>
+              <button
+                type="button"
+                className="btn btn-danger-ghost btn-sm active-run-stop"
+                onClick={() => handleStopRun(activeRun)}
+                disabled={pendingRunAction !== null}
+              >
+                {pendingRunAction === 'stop' ? 'עוצר…' : 'עצירת הריצה'}
+              </button>
+            </div>
+            <div className="active-run-progress">
+              <div
+                className="run-progress"
+                role="progressbar"
+                aria-label="התקדמות הריצה"
+                aria-valuemin={0}
+                aria-valuemax={activeRun.report_count}
+                aria-valuenow={activeRun.dispatched_count}
+              >
+                <span style={{ width: `${activeRun.report_count > 0 ? Math.min(100, (activeRun.dispatched_count / activeRun.report_count) * 100) : 0}%` }} />
+              </div>
+              <span className="run-progress-label">
+                נשלחו <span className="mono">{activeRun.dispatched_count}</span> מתוך <span className="mono">{activeRun.report_count}</span> דיווחים
+                · משך מתוכנן {plannedDuration(activeRun.simulation_length_s)}
+              </span>
+            </div>
           </div>
         ) : (
           <div className="card active-empty">
@@ -308,10 +344,14 @@ export default function Home() {
             {visible.map((sim) => {
               const preset = DIFFICULTY_PRESETS[sim.difficulty];
               const categories = Array.from(new Set(sim.events.map((event) => event.category))).slice(0, 3);
+              const isRunning = activeRun?.simulation_id === sim.id;
+              const blockReason = runBlockReason(sim, activeRun);
               return (
                 <article key={sim.id} className="card sim-card">
                   <div className="chips">
-                    <span className="badge b-ok">שמורה</span>
+                    {isRunning
+                      ? <span className="badge run-status status-started">רצה כעת</span>
+                      : <span className="badge b-ok">שמורה</span>}
                     <DifficultyBadge difficulty={sim.difficulty} />
                   </div>
                   <h3 className="sc-title">
@@ -333,6 +373,18 @@ export default function Home() {
                     <div className="sc-actions">
                       <button
                         type="button"
+                        className="btn btn-run btn-sm run-sim-btn"
+                        onClick={() => handleStartRun(sim)}
+                        // aria-disabled, not disabled: a click on a blocked button explains why.
+                        aria-disabled={blockReason !== null || pendingRunAction !== null}
+                        aria-label={`הרצת הסימולציה ${sim.title}`}
+                        title={blockReason ?? 'הרצת הסימולציה'}
+                      >
+                        <PlayCircleIcon size={16} />
+                        <span>{pendingRunAction === `start:${sim.id}` ? 'מפעיל…' : 'הרצה'}</span>
+                      </button>
+                      <button
+                        type="button"
                         className="icon-btn delete-sim-btn"
                         onClick={() => handleDeleteSimulation(sim.id)}
                         aria-label={`מחיקת הסימולציה ${sim.title}`}
@@ -342,6 +394,9 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
+                  {runActionError?.action === 'start' && runActionError.simulationId === sim.id && (
+                    <p className="sc-run-error" role="alert">{runActionError.message}</p>
+                  )}
                 </article>
               );
             })}
@@ -390,8 +445,17 @@ export default function Home() {
                 <span>{plannedDuration(run.simulation_length_s)}</span>
                 <div className="run-status-cell">
                   <span className={`run-status status-${run.status}`}>{runStatusLabel(run.status)}</span>
-                  <span className="run-estimate">{estimatedEnd(run) && now >= new Date(estimatedEnd(run)!).getTime() ? 'משך הריצה חלף' : 'הריצה בעיצומה'}</span>
-                  {estimatedEnd(run) && <span className="run-estimate-end">סיום משוער: {formatRelativeRunTime(estimatedEnd(run)!, now)}</span>}
+                  {/* The estimate only describes a run that is still going. */}
+                  {run.status === 'started' && <>
+                    <span className="run-estimate">{estimatedEnd(run) && now >= new Date(estimatedEnd(run)!).getTime() ? 'משך הריצה חלף' : 'הריצה בעיצומה'}</span>
+                    {estimatedEnd(run) && <span className="run-estimate-end">סיום משוער: {formatRelativeRunTime(estimatedEnd(run)!, now)}</span>}
+                  </>}
+                  {run.status !== 'started' && (
+                    <span className="run-estimate">נשלחו {run.dispatched_count} מתוך {run.report_count}</span>
+                  )}
+                  {run.status === 'failed' && run.failure_reason && (
+                    <span className="run-estimate-end" title={run.failure_reason}>{run.failure_reason}</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -421,6 +485,14 @@ export default function Home() {
           simulation={openSimulation}
           onClose={() => setOpenId(null)}
           onDelete={handleDeleteSimulation}
+          runs={recentRuns.filter((run) => run.simulation_id === openSimulation.id)}
+          activeRun={activeRun}
+          now={now}
+          runBlockReason={runBlockReason(openSimulation, activeRun)}
+          pendingRunAction={pendingRunAction}
+          runActionError={runActionError?.simulationId === openSimulation.id ? runActionError.message : ''}
+          onRun={() => handleStartRun(openSimulation)}
+          onStop={handleStopRun}
         />
       )}
     </div>

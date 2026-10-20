@@ -2,13 +2,25 @@ import { useEffect } from 'react';
 import { Simulation } from '../types/simulation';
 import { DIFFICULTY_PRESETS } from '../data/difficulty';
 import { SYSTEM_INFO } from '../lib/appSettings';
-import { CloseIcon, TrashIcon } from './Icons';
+import type { SimulationRun } from '../lib/runsApi';
+import { formatRelativeRunTime, runDuration, runStatusLabel } from '../lib/runFormat';
+import { CloseIcon, PlayCircleIcon, TrashIcon } from './Icons';
 import './SimulationDrawer.css';
 
 interface SimulationDrawerProps {
   simulation: Simulation;
   onClose: () => void;
   onDelete: (id: string) => void;
+  /** This simulation's runs, newest first. */
+  runs: SimulationRun[];
+  activeRun: SimulationRun | null;
+  now: number;
+  /** Why the simulation can't run now, or null. */
+  runBlockReason: string | null;
+  pendingRunAction: string | null;
+  runActionError: string;
+  onRun: () => void;
+  onStop: (run: SimulationRun) => void;
 }
 
 export function formatWhen(iso: string) {
@@ -33,8 +45,12 @@ export function DifficultyBadge({ difficulty }: { difficulty: Simulation['diffic
   );
 }
 
-export default function SimulationDrawer({ simulation, onClose, onDelete }: SimulationDrawerProps) {
+export default function SimulationDrawer({
+  simulation, onClose, onDelete, runs, activeRun, now,
+  runBlockReason, pendingRunAction, runActionError, onRun, onStop,
+}: SimulationDrawerProps) {
   const preset = DIFFICULTY_PRESETS[simulation.difficulty];
+  const ownActiveRun = activeRun?.simulation_id === simulation.id ? activeRun : null;
   const events = [...simulation.events].sort((a, b) => a.minute - b.minute);
 
   useEffect(() => {
@@ -111,13 +127,54 @@ export default function SimulationDrawer({ simulation, onClose, onDelete }: Simu
           </section>
 
           <section>
-            <h3 className="h3 drawer-sec-title">היסטוריית ריצות</h3>
-            <p className="hint">הסימולציה עדיין לא הורצה.</p>
+            <h3 className="h3 drawer-sec-title">היסטוריית ריצות · {runs.length}</h3>
+            {runs.length === 0 ? (
+              <p className="hint">הסימולציה עדיין לא הורצה.</p>
+            ) : (
+              <ol className="run-history">
+                {runs.map((run) => (
+                  <li className="run-history-item" key={run.id}>
+                    <span className={`run-status status-${run.status}`}>{runStatusLabel(run.status)}</span>
+                    <div className="run-history-main">
+                      <time dateTime={run.started_at}>{formatRelativeRunTime(run.started_at, now)}</time>
+                      <span className="mini-desc">
+                        {runDuration(run, now)} · נשלחו <span className="mono">{run.dispatched_count}</span> מתוך <span className="mono">{run.report_count}</span> דיווחים
+                      </span>
+                      {run.status === 'failed' && run.failure_reason && (
+                        <span className="run-history-reason">{run.failure_reason}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
           </section>
         </div>
 
         <footer className="drawer-foot">
+          {runActionError && <p className="drawer-run-error" role="alert">{runActionError}</p>}
           <button type="button" className="btn btn-secondary" onClick={onClose}>סגירה</button>
+          {ownActiveRun ? (
+            <button
+              type="button"
+              className="btn btn-danger-ghost"
+              onClick={() => onStop(ownActiveRun)}
+              disabled={pendingRunAction !== null}
+            >
+              {pendingRunAction === 'stop' ? 'עוצר…' : 'עצירת הריצה'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-run"
+              onClick={onRun}
+              aria-disabled={runBlockReason !== null || pendingRunAction !== null}
+              title={runBlockReason ?? 'הרצת הסימולציה'}
+            >
+              <PlayCircleIcon size={16} />
+              {pendingRunAction === `start:${simulation.id}` ? 'מפעיל…' : 'הרצה'}
+            </button>
+          )}
           <button type="button" className="btn btn-danger-ghost drawer-delete" onClick={() => onDelete(simulation.id)}>
             <TrashIcon size={16} />
             מחיקה

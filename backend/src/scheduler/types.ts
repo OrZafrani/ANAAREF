@@ -24,6 +24,8 @@ export interface SimulationRunSummary extends SimulationRun {
   simulation_name: string;
   target_system: 'specter' | 'combat';
   simulation_length_s: number;
+  /** Reports the run will send in total; with dispatched_count it gives the run's progress. */
+  report_count: number;
 }
 
 /** The fields startRun checks before it creates a run. */
@@ -33,8 +35,6 @@ export interface SimulationForStart {
   target_system: 'specter' | 'combat';
   report_count: number;
   other_reality_report_count: number;
-  /** Required ENRICHED_REPORT fields that are empty in at least one of the simulation's reports. */
-  missing_fields: string[];
 }
 
 /** A report_in_simulation row joined with its report. */
@@ -48,10 +48,8 @@ export interface DispatchRow {
   account_name: string | null;
   channel_name: string | null;
   report_url: string;
-  media_type: string[];
   report_title: string | null;
   original_language: string | null;
-  matches: string[] | null;
   categories: string[];
   published_at: Date | null;
   happened_at: Date | null;
@@ -71,8 +69,9 @@ export interface DispatchRow {
 }
 
 /**
- * ENRICHED_REPORT as published to reports.enriched, matching the DE team's
- * shared/contracts/enriched_report.py field for field. Timestamps are UTC "YYYY-MM-DD HH:MM".
+ * ENRICHED_REPORT as published to reports.enriched, field for field as in the Specter
+ * team's example (shared/contracts/specter_enriched_report.example.json).
+ * Timestamps are UTC ISO 8601, e.g. "2026-10-19T14:58:00.000Z".
  */
 export interface EnrichedReport {
   report_id: string;
@@ -80,28 +79,28 @@ export interface EnrichedReport {
   schema_version: number;
   is_official: boolean;
   platform: string;
-  account_name: string;
-  channel_name: string;
+  account_name: string | null;
+  channel_name: string | null;
   report_url: string;
-  media_type: string[];
   report_title: string | null;
-  original_language: string;
+  original_language: string | null;
   matches: string[];
   categories: string[];
   published_at: string | null;
   collected_at: string;
   original_content: string;
-  translated_content: string;
-  threat_level: number;
-  country: string;
-  city: string;
-  lat: number;
-  long: number;
+  translated_content: string | null;
+  threat_level: number | null;
+  country: string | null;
+  city: string | null;
+  lat: number | null;
+  long: number | null;
   happened_at: string | null;
   red_injured_count: number | null;
   red_death_count: number | null;
   blue_injured_count: number | null;
   blue_death_count: number | null;
+  fastbreak_model_version: string | null;
 }
 
 export interface KafkaMessage {
