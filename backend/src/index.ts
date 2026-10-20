@@ -1,8 +1,16 @@
 import cors from 'cors';
+import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
+import { apiErrorHandler } from './lib/validate.js';
+import { categoryRoutes, subCategoryRoutes } from './routes/categoryRoutes.js';
+import { libraryRoutes } from './routes/libraryRoutes.js';
 import simulationsRouter from './routes/simulations.router.js';
+import { templateRoutes } from './routes/templateRoutes.js';
+import { isLibraryEmpty, runSeedLibrary } from './seed/categorySeedLoader.js';
 import { ApiError } from './services/api-error.js';
 
 const databaseConnectionErrorCodes = new Set([
@@ -52,11 +60,17 @@ function getRequestBodyError(error: unknown): { status: number; message: string 
   }
 }
 
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 app.use('/api/simulations', simulationsRouter);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/sub-categories', subCategoryRoutes);
+app.use('/api/library', libraryRoutes);
+app.use('/api/templates', templateRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
@@ -76,7 +90,7 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found.' });
 });
 
-app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   const requestBodyError = getRequestBodyError(error);
   if (requestBodyError) {
     res.status(requestBodyError.status).json({ error: requestBodyError.message });
@@ -84,22 +98,37 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   }
 
   const databaseUnavailable = isDatabaseConnectionError(error);
-  const statusCode = error instanceof ApiError ? error.statusCode : databaseUnavailable ? 503 : 500;
-  const message = error instanceof ApiError
-    ? error.message
-    : databaseUnavailable
-      ? 'Database unavailable. Check backend logs and /health/ready.'
-      : 'Internal server error.';
+  if (error instanceof ApiError) {
+    res.status(error.statusCode).json({ error: error.message });
+    return;
+  }
 
-  if (statusCode === 500) console.error('API request failed:', error);
-  if (databaseUnavailable) logDatabaseError('Database request failed', error);
-  res.status(statusCode).json({ error: message });
+  if (databaseUnavailable) {
+    logDatabaseError('Database request failed', error);
+    res.status(503).json({ error: 'Database unavailable. Check backend logs and /health/ready.' });
+    return;
+  }
+
+  next(error);
 });
+app.use(apiErrorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
   void db.query('SELECT 1')
     .then(() => console.log('PostgreSQL connection established'))
     .catch((error: unknown) => logDatabaseError('PostgreSQL startup connection failed', error));
+
+  // Auto-seed: populate the template library if it is empty
+  try {
+    if (await isLibraryEmpty()) {
+      console.log('[boot] Library is empty – running auto-seed...');
+      await runSeedLibrary();
+    } else {
+      console.log('[boot] Library already populated – skipping seed.');
+    }
+  } catch (err) {
+    console.error('[boot] Auto-seed failed (non-fatal):', err);
+  }
 });

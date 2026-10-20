@@ -1,13 +1,16 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:4000';
+
+const config: UserConfig & { test: { globals: boolean; environment: string; setupFiles: string } } = {
   plugins: [react()],
   server: {
-    port: 5173,
+    port: Number(process.env.VITE_PORT) || 5173,
     proxy: {
-      '/health': 'http://localhost:4000',
-      '/api': 'http://localhost:4000',
+
+      '/health': apiTarget,
+      '/api': apiTarget,
     }
   },
   test: {
@@ -15,4 +18,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts'
   }
-});
+};
+
+export default defineConfig(config);

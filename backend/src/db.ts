@@ -1,5 +1,11 @@
 import 'dotenv/config';
 import pg from 'pg';
+import dotenv from 'dotenv';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Load backend/.env before the pool is created (this module is imported early).
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
 const { Pool, types, defaults } = pg;
 
@@ -21,6 +27,9 @@ export const db = new Pool({
   connectionString,
   max: Number(process.env.DB_POOL_MAX) || 10,
   connectionTimeoutMillis: Number(process.env.DB_TIMEOUT_MS) || 5000,
+  // ssl: {
+  //   rejectUnauthorized: false,
+  // },
 });
 
 db.on('error', (error: Error & { code?: string }) => {
