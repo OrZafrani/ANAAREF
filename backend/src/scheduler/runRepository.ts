@@ -4,6 +4,13 @@ import type { Cursor, DispatchRow, RunStatus, SchedulerStore, SimulationForStart
 
 const UTC_NOW = `(now() AT TIME ZONE 'utc')`;
 
+// A run with its simulation's details and total report count, for dashboards.
+const RUN_SUMMARY_SELECT = `
+  SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s,
+         (SELECT count(*)::int FROM report_in_simulation ris WHERE ris.simulation_id = r.simulation_id) AS report_count
+  FROM simulation_runs r
+  JOIN simulations s ON s.id = r.simulation_id`;
+
 // GREATEST keeps completed_at >= started_at (a CHECK) if the clock moved back.
 const FINISH_SET = `status = $2, completed_at = GREATEST(${UTC_NOW}, started_at), failure_reason = $3`;
 
@@ -54,9 +61,7 @@ export const runRepository: SchedulerStore = {
 
   async listRuns(simulationId) {
     const result = await db.query<SimulationRunSummary>(
-      `SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s
-       FROM simulation_runs r
-       JOIN simulations s ON s.id = r.simulation_id
+      `${RUN_SUMMARY_SELECT}
        WHERE ($1::uuid IS NULL OR r.simulation_id = $1)
        ORDER BY r.started_at DESC, r.id DESC`,
       [simulationId ?? null],
@@ -66,9 +71,7 @@ export const runRepository: SchedulerStore = {
 
   async getStartedRun() {
     const result = await db.query<SimulationRunSummary>(
-      `SELECT r.*, s.name AS simulation_name, s.target_system, s.length_s AS simulation_length_s
-       FROM simulation_runs r
-       JOIN simulations s ON s.id = r.simulation_id
+      `${RUN_SUMMARY_SELECT}
        WHERE r.status = 'started'
        ORDER BY r.started_at DESC, r.id DESC
        LIMIT 1`,

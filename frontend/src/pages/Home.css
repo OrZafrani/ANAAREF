@@ -415,6 +415,72 @@
 
 .active-run-card strong { color: var(--ink); }
 
+/* Active run: summary row, then progress */
+.active-run-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.active-run-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.active-run-stop { margin-inline-start: auto; }
+
+.active-run-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.run-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.run-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--run);
+  transition: width .4s ease;
+}
+
+.run-progress-label { font-size: 13px; }
+
+.run-error {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--r-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.sc-run-error {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* Blocked run buttons stay clickable (the click explains why), so dim them instead of disabling. */
+.run-sim-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .run-progress > span { transition: none; }
+}
+
 .runs-empty {
   margin: 0;
   padding: 18px 20px;

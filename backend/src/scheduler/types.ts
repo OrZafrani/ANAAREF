@@ -24,6 +24,8 @@ export interface SimulationRunSummary extends SimulationRun {
   simulation_name: string;
   target_system: 'specter' | 'combat';
   simulation_length_s: number;
+  /** Reports the run will send in total; with dispatched_count it gives the run's progress. */
+  report_count: number;
 }
 
 /** The fields startRun checks before it creates a run. */
