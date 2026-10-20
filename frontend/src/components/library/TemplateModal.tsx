@@ -14,7 +14,6 @@ type FormState = {
   report_url: string;
   report_title: string;
   original_language: string;
-  matches: string;
   published_at: string;
   collected_at: string;
   original_content: string;
@@ -74,7 +73,6 @@ function createForm(
     report_url: template?.report_url ?? '',
     report_title: template?.report_title ?? '',
     original_language: template?.original_language ?? 'he',
-    matches: template?.matches?.join('; ') ?? '',
     published_at: localDateValue(template?.published_at),
     collected_at: localDateValue(template?.collected_at ?? new Date().toISOString()),
     original_content: template?.original_content ?? '',
@@ -126,7 +124,6 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
         report_url: form.report_url.trim(),
         report_title: nullableText(form.report_title),
         original_language: nullableText(form.original_language)?.toLowerCase() ?? null,
-        matches: form.matches.split(';').map((item) => item.trim()).filter(Boolean),
         published_at: isoDateValue(form.published_at),
         collected_at: isoDateValue(form.collected_at) ?? new Date().toISOString(),
         original_content: form.original_content,
@@ -185,7 +182,6 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
                 ? <a href={`https://www.openstreetmap.org/?mlat=${template.lat}&mlon=${template.long}#map=13/${template.lat}/${template.long}`} target="_blank" rel="noreferrer">{template.lat}, {template.long}</a>
                 : 'לא דווח'}</dd></div>
               <div><dt>חשבון / ערוץ</dt><dd>{[template.account_name, template.channel_name].filter(Boolean).join(' · ') || 'לא דווח'}</dd></div>
-              <div><dt>מילות מפתח</dt><dd>{template.matches?.join(' · ') || 'לא דווח'}</dd></div>
               <div><dt>פורסם</dt><dd>{template.published_at ? new Date(template.published_at).toLocaleString('he-IL') : 'לא דווח'}</dd></div>
               <div><dt>נאסף</dt><dd>{new Date(template.collected_at).toLocaleString('he-IL')}</dd></div>
               <div><dt>פצועים - צד אדום</dt><dd>{displayValue(template.red_injured_count)}</dd></div>
@@ -226,7 +222,6 @@ export default function TemplateModal({ mode, template, categories, canWrite, in
                   <label>חשבון<input value={form.account_name} onChange={(event) => setField('account_name', event.target.value)} maxLength={200} disabled={!editable} /></label>
                   <label>ערוץ<input value={form.channel_name} onChange={(event) => setField('channel_name', event.target.value)} maxLength={200} disabled={!editable} /></label>
                   <label className="field-wide">קישור מקור<input type="url" required value={form.report_url} onChange={(event) => setField('report_url', event.target.value)} maxLength={2048} disabled={!editable} /></label>
-                  <label className="field-wide">מילות מפתח <span className="field-hint">מופרדות בנקודה-פסיק</span><input value={form.matches} onChange={(event) => setField('matches', event.target.value)} disabled={!editable} /></label>
                 </div>
               </section>
 

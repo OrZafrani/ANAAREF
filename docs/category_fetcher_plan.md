@@ -31,8 +31,8 @@ This document specifies the end-to-end design and concrete implementation plan f
 - **FR-01 (Seed Ingestion):** Ingest static library content (~20 Hebrew Specter scenario reports) from CSV into PostgreSQL (`template_categories`, `template_sub_categories`, and `report_templates`).
 - **FR-02 (Hierarchical Category Tree):** Expose a two-level hierarchical category tree (`Category -> Sub-Category`) with live aggregate report counts.
 - **FR-03 (Parent Count Aggregation):** Parent category count must equal the total number of report templates directly assigned to it plus all report templates assigned to its child sub-categories.
-- **FR-04 (Library Report Browsing):** Provide filtered report listing by category, sub-category, and free-text search across Hebrew report titles, original content, cities, and keyword matches.
-- **FR-05 (Report Inspection Modal):** Enable clicking on a report card in the frontend to open a detailed modal showing the full intelligence payload (threat level, platform, published date, casualty breakdown, coordinates, trigger keywords).
+- **FR-04 (Library Report Browsing):** Provide filtered report listing by category, sub-category, and free-text search across Hebrew report titles, original content, and cities.
+- **FR-05 (Report Inspection Modal):** Enable clicking on a report card in the frontend to open a detailed modal showing the report content, threat level, platform, published date, casualty breakdown, and coordinates.
 - **FR-06 (Right-Click Context Menu):** Desktop-grade context menu on the category tree supporting:
   - Add sub-category under a parent.
   - Rename category or sub-category.
@@ -153,7 +153,6 @@ erDiagram
         text report_url "Canonical URL, unique per platform"
         text report_title "Nullable headline"
         text original_language "ISO 639-1 (he, ar, en)"
-        text_array matches "Trigger keywords"
         timestamp published_at "Nullable"
         timestamp happened_at "Nullable"
         timestamp collected_at "Ingestion time"
@@ -213,7 +212,6 @@ CREATE TABLE report_templates (
     report_url              text      NOT NULL,
     report_title            text,
     original_language       text,
-    matches                 text[],
     published_at            timestamp,
     happened_at             timestamp,
     collected_at            timestamp NOT NULL,
@@ -272,7 +270,7 @@ CREATE TRIGGER report_templates_set_updated_at
 The seed loader consumes `backend/src/seed/reports_library_seed.csv`. The CSV extends `enriched_reports_schema-v2.csv` with `category` and `sub_category`:
 
 ```csv
-category,sub_category,schema_version,is_official,platform,account_name,channel_name,report_url,report_title,original_language,matches,published_at,collected_at,original_content,translated_content,threat_level,happened_at,country,city,lat,long,red_injured_count,red_death_count,blue_injured_count,blue_death_count,fastbreak_model_version
+category,sub_category,schema_version,is_official,platform,account_name,channel_name,report_url,report_title,original_language,published_at,collected_at,original_content,translated_content,threat_level,happened_at,country,city,lat,long,red_injured_count,red_death_count,blue_injured_count,blue_death_count,fastbreak_model_version
 ```
 
 ### 2. Processing Pipeline
@@ -288,7 +286,6 @@ sequenceDiagram
     Parser-->>Val: Yield record stream
     Val->>Val: Check mandatory fields (category, content, platform, url)
     Val->>Val: Parse casualty counts ('' -> NULL, '0' -> 0)
-    Val->>Val: Parse matches (split ';' delimiter)
     Val->>Val: Parse UTC timestamps
     
     Engine->>DB: BEGIN TRANSACTION
