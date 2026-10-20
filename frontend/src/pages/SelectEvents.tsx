@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
@@ -91,6 +91,11 @@ export default function SelectEvents() {
       id: template.id,
       title: template.report_title || 'תבנית ללא כותרת',
       category: toEventCategory(template),
+      categoryName: template.category_name ?? undefined,
+      categoryId: template.category_id,
+      subCategory: template.sub_category_name ?? undefined,
+      subCategoryId: template.sub_category_id,
+      reportUrl: template.report_url,
       minute: Math.min(Math.max(Math.round(((index + 1) / count) * cap) || 1, 1), cap),
       description: template.original_content?.slice(0, 500) || template.report_title || 'דיווח מספריית התוכן.',
     }));
@@ -317,7 +322,7 @@ export default function SelectEvents() {
                       <div className="selected-text">
                         <h5 className="selected-text-title">{evt.title}</h5>
                         <div className="selected-text-sub">
-                          <span>סיווג: {evt.category}</span>
+                          <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
                         </div>
@@ -414,7 +419,7 @@ export default function SelectEvents() {
                       <div className="selected-text">
                         <h5 className="selected-text-title">{evt.title}</h5>
                         <div className="selected-text-sub">
-                          <span>סיווג: {evt.category}</span>
+                          <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
                         </div>
@@ -450,15 +455,16 @@ export default function SelectEvents() {
         )}
       </main>
 
-      {/* Content Library Modal — DB-driven (availableEvents already mapped from report_templates) */}
       <ContentLibraryModal
         isOpen={isLibraryOpen}
         onClose={() => setIsLibraryOpen(false)}
+        categories={categories}
         availableEvents={availableEvents}
         selectedIds={selectedIds}
         onToggle={handleToggleEvent}
         onAddCustom={handleAddCustomEvent}
         isLoading={isLoadingLibrary}
+        error={libraryError}
         totalCount={availableEvents.length}
       />
 

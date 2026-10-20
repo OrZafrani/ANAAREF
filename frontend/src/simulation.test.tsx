@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -9,6 +8,7 @@ import SelectEvents from './pages/SelectEvents';
 
 describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
     localStorage.clear();
     sessionStorage.clear();
     global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
@@ -154,36 +154,60 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('נא להזין שם לסימולציה')).toBeInTheDocument();
   });
 
-  it('renders events selection step 2 and tracks amount of selected events', async () => {
+  it('uses library categories and reports in events selection step 2', async () => {
+    const categories = [{
+      id: 'category-1',
+      name: 'תפעול',
+      report_count: 2,
+      sub_categories: [{ id: 'subcategory-1', category_id: 'category-1', name: 'התראות', report_count: 1 }],
+    }];
+    const reports = [
+      {
+        id: 'report-1',
+        category_id: 'category-1',
+        sub_category_id: 'subcategory-1',
+        category_name: 'תפעול',
+        sub_category_name: 'התראות',
+        report_title: 'דיווח מספריית התוכן',
+        original_content: 'תוכן הדיווח שנשמר בספרייה',
+        translated_content: null,
+        report_url: 'https://example.com/report-1',
+        city: 'באר שבע',
+        country: 'IL',
+        happened_at: null,
+        collected_at: '2025-01-01T12:00:00.000Z',
+      },
+      {
+        id: 'report-2',
+        category_id: 'category-1',
+        sub_category_id: null,
+        category_name: 'תפעול',
+        sub_category_name: null,
+        report_title: 'דיווח כללי',
+        original_content: 'תוכן נוסף',
+        translated_content: null,
+        report_url: 'https://example.com/report-2',
+        city: null,
+        country: null,
+        happened_at: null,
+        collected_at: '2025-01-02T12:00:00.000Z',
+      },
+    ];
     const testState = {
       title: 'מטח פתיחה — עוטף עזה',
       description: 'תרגול תרחיש תגובה מהירה',
       difficulty: 'קשה' as const,
     };
-    // DB-driven library: categories tree + report_templates
-    global.fetch = vi.fn(async (url: string) => {
-      if (String(url).includes('/api/categories/tree')) {
-        return { ok: true, status: 200, json: async () => [] };
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/categories/tree')) {
+        return new Response(JSON.stringify(categories), { status: 200 });
       }
-      if (String(url).includes('/api/templates')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => [{
-            id: 'tpl-1',
-            category_id: 'cat-1',
-            sub_category_id: null,
-            category_name: 'מבצעי',
-            sub_category_name: null,
-            report_title: 'זיהוי תנועה חשודה בגדר המערכת',
-            original_content: 'חיישני הגדר המערבית זיהו תנועה חריגה.',
-            matches: ['התראה'],
-            collected_at: '2026-10-19T10:00:00.000Z',
-          }],
-        };
+      if (url.includes('/api/templates')) {
+        return new Response(JSON.stringify(reports), { status: 200 });
       }
-      return { ok: true, status: 200, json: async () => ({}) };
-    }) as any;
+      return new Response('{}', { status: 404 });
+    });
 
     render(
       <MemoryRouter initialEntries={[{ pathname: '/simulations/events', state: testState }]}>
@@ -207,27 +231,35 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     expect(screen.getByText('ספריית התוכן')).toBeInTheDocument();
 
-    const addButtons = await screen.findAllByRole('button', { name: /הוסף לסימולציה/i });
-    expect(addButtons.length).toBeGreaterThan(0);
-    fireEvent.click(addButtons[0]);
+    await waitFor(() => expect(screen.getByText('דיווח מספריית התוכן')).toBeInTheDocument());
+    expect(screen.getAllByText('תפעול').length).toBeGreaterThan(0);
+    expect(screen.getByText('התראות')).toBeInTheDocument();
+    expect(screen.getByText('דיווח כללי')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /התראות/ }));
+    expect(screen.queryByText('דיווח כללי')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('spinbutton', { name: /דקה בסימולציה: דיווח מספריית התוכן/ }), {
+      target: { value: '7' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ }));
 
     // Check count and selection state
-    expect(screen.getAllByText('נבחר לסימולציה').length).toBeGreaterThan(0);
+    expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
+    expect(screen.getByText('דקה 7')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
   });
 
   it('saves a simulation and selected events through the API', async () => {
     const createdAt = '2026-10-19T10:00:00.000Z';
-    const fetchMock = vi.fn(async (url: string) => {
-      if (String(url).includes('/api/categories/tree')) {
-        return { ok: true, status: 200, json: async () => [] };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/categories/tree')) {
+        return new Response('[]', { status: 200 });
       }
-      if (String(url).includes('/api/templates')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => [{
+      if (url.includes('/api/templates')) {
+        return new Response(JSON.stringify([{
             id: 'tpl-1',
             category_id: 'cat-1',
             sub_category_id: null,
@@ -237,12 +269,11 @@ describe('Simulation Flow - Mockup Alignment', () => {
             original_content: 'חיישני הגדר המערבית זיהו תנועה חריגה.',
             matches: ['התראה'],
             collected_at: '2026-10-19T10:00:00.000Z',
-          }],
-        };
+          }]), { status: 200 });
       }
-      return { ok: true, status: 201, json: async () => ({ id: 'database-simulation-id', createdAt }) };
+      return new Response(JSON.stringify({ id: 'database-simulation-id', createdAt }), { status: 201 });
     });
-    global.fetch = fetchMock as any;
+    global.fetch = fetchMock;
     const testState = {
       title: 'תרגיל שמור',
       description: 'תיאור תרגיל',
