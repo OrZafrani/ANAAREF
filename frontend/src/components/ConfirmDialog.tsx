@@ -73,6 +73,9 @@ export default function ConfirmDialog({
         </div>
 
         <div className="modal-footer">
+          <button ref={cancelRef} type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
+            ביטול
+          </button>
           <button
             ref={confirmRef}
             type="button"
@@ -82,9 +85,6 @@ export default function ConfirmDialog({
           >
             {confirmIcon}
             {busy ? busyLabel : confirmLabel}
-          </button>
-          <button ref={cancelRef} type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
-            ביטול
           </button>
         </div>
       </div>
