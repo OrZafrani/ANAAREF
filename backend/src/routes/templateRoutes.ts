@@ -38,7 +38,6 @@ const templateFields = {
   report_url: vHttpUrl(),
   report_title: vOptionalString(500),
   original_language: vOptionalPattern(/^[a-z]{2}$/, 2, 'Two lowercase language letters expected'),
-  matches: vStringArray(),
   published_at: vNullable(vIsoDate()),
   collected_at: vIsoDate(),
   original_content: vRequiredString(50000),

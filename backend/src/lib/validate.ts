@@ -316,6 +316,11 @@ export const apiErrorHandler: ErrorRequestHandler = (error, _req, res, _next) =>
     res.status(409).json({ error: 'The requested change conflicts with existing records' });
     return;
   }
+  if (databaseCode === '55006') {
+    // Raised by the report_in_simulation_block_while_running trigger.
+    res.status(409).json({ error: 'The simulation is running; stop it before changing its reports' });
+    return;
+  }
   if (databaseCode === '23514') {
     res.status(400).json({ error: 'The submitted data violates a database constraint' });
     return;

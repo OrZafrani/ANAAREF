@@ -1,13 +1,15 @@
 .global-navbar {
-  background: #ffffff;
-  border-bottom: 2px solid #e5a81e;
-  padding: 0.5rem 2rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 -2px 0 var(--sys);
+  padding: 8px 28px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 16px 24px;
   direction: rtl;
-  min-height: 60px;
-  box-sizing: border-box;
+  min-height: 64px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -16,119 +18,106 @@
 .navbar-brand-section {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 10px;
   text-decoration: none;
   cursor: pointer;
 }
 
 .cobra-brand-logo {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  flex: none;
   object-fit: contain;
-  border-radius: 50%;
 }
 
 .brand-text-block {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
 }
 
 .brand-title-main {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: 0.05em;
-  line-height: 1.1;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  color: var(--navy);
 }
 
 .brand-tagline-sub {
-  font-size: 0.7rem;
-  color: #6b7280;
-  margin-top: 0.15rem;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 .navbar-controls-section {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.target-sys-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .target-sys-label {
-  font-size: 0.82rem;
-  color: #4b5563;
-  font-weight: 500;
-  margin-inline-end: 0.35rem;
-}
-
-.navbar-pill-btn {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 0.4rem 0.85rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
+  font-size: 12px;
   font-weight: 600;
-  color: #374151;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s ease;
+  color: var(--ink-2);
 }
 
-.navbar-pill-btn:hover {
-  border-color: #9ca3af;
-  background-color: #f9fafb;
-}
-
-.pill-dot {
-  width: 7px;
-  height: 7px;
+.sys-swatch {
+  width: 8px;
+  height: 8px;
   border-radius: 2px;
-  flex-shrink: 0;
+  flex: none;
 }
 
-.dot-yellow {
-  background-color: #e5a81e;
-}
-
-.dot-purple {
-  background-color: #9333ea;
-}
+.sys-swatch-spectre { background: var(--id-spectre); }
+.sys-swatch-cm { background: var(--id-cm); }
 
 .btn-darkmode-toggle {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 0.4rem 0.85rem;
+  height: 36px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
-  color: #374151;
-  cursor: pointer;
+  gap: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-2);
   font-family: inherit;
-  transition: all 0.15s ease;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
 }
 
 .btn-darkmode-toggle:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--surface-2);
+  border-color: var(--line-3);
 }
 
 .user-avatar-badge {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: #0f172a;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  margin-inline-start: 0.25rem;
+  background: var(--strong);
+  color: var(--on-strong);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex: none;
   user-select: none;
+}
+
+@media (max-width: 900px) {
+  .global-navbar { padding: 8px 16px; }
 }
 
 @media (max-width: 700px) {

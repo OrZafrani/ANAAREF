@@ -36,17 +36,6 @@ export function parseCasualtyCount(val: string | undefined): number | null {
 }
 
 /**
- * Parse the semicolon-delimited `matches` column into a clean string array.
- */
-export function parseMatches(val: string | undefined): string[] {
-  if (!val || val.trim() === '') return [];
-  return val
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/**
  * Parse an optional ISO-8601 timestamp. Returns `null` when empty.
  */
 export function parseOptionalTimestamp(val: string | undefined): string | null {
@@ -76,7 +65,6 @@ interface CsvRow {
   report_url: string;
   report_title: string;
   original_language: string;
-  matches: string;
   published_at: string;
   collected_at: string;
   original_content: string;
@@ -114,7 +102,7 @@ const UPSERT_REPORT_TEMPLATE = `
   INSERT INTO report_templates (
     category_id, sub_category_id, schema_version, is_official,
     platform, account_name, channel_name, report_url, report_title,
-    original_language, matches, published_at, collected_at,
+    original_language, published_at, collected_at,
     original_content, translated_content, threat_level,
     happened_at, country, city, lat, long,
     red_injured_count, red_death_count, blue_injured_count, blue_death_count,
@@ -122,11 +110,11 @@ const UPSERT_REPORT_TEMPLATE = `
   ) VALUES (
     $1, $2, $3, $4,
     $5, $6, $7, $8, $9,
-    $10, $11, $12, $13,
-    $14, $15, $16,
-    $17, $18, $19, $20, $21,
-    $22, $23, $24, $25,
-    $26
+    $10, $11, $12,
+    $13, $14, $15,
+    $16, $17, $18, $19, $20,
+    $21, $22, $23, $24,
+    $25
   )
   ON CONFLICT (platform, report_url) DO UPDATE SET
     category_id = EXCLUDED.category_id,
@@ -137,7 +125,6 @@ const UPSERT_REPORT_TEMPLATE = `
     channel_name = EXCLUDED.channel_name,
     report_title = EXCLUDED.report_title,
     original_language = EXCLUDED.original_language,
-    matches = EXCLUDED.matches,
     published_at = EXCLUDED.published_at,
     collected_at = EXCLUDED.collected_at,
     original_content = EXCLUDED.original_content,
@@ -204,7 +191,6 @@ async function upsertRow(client: PoolClient, row: CsvRow): Promise<void> {
     row.report_url.trim(),
     row.report_title?.trim() || null,
     row.original_language?.trim() || null,
-    parseMatches(row.matches),
     parseOptionalTimestamp(row.published_at),
     row.collected_at.trim(),
     row.original_content,

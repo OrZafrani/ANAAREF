@@ -10,7 +10,7 @@ export interface TemplateFilters {
 const TEMPLATE_COLUMNS = [
   'category_id', 'sub_category_id', 'schema_version', 'is_official', 'platform',
   'account_name', 'channel_name', 'report_url', 'report_title', 'original_language',
-  'matches', 'published_at', 'collected_at', 'original_content', 'translated_content',
+  'published_at', 'collected_at', 'original_content', 'translated_content',
   'threat_level', 'happened_at', 'country', 'city', 'lat', 'long',
   'red_injured_count', 'red_death_count', 'blue_injured_count', 'blue_death_count',
   'fastbreak_model_version',
@@ -37,8 +37,7 @@ export async function listTemplates(filters: TemplateFilters) {
             t.translated_content ILIKE '%' || $3 || '%' OR
             t.city ILIKE '%' || $3 || '%' OR
             c.name ILIKE '%' || $3 || '%' OR
-            s.name ILIKE '%' || $3 || '%' OR
-            array_to_string(t.matches, ' ') ILIKE '%' || $3 || '%')
+            s.name ILIKE '%' || $3 || '%')
      ORDER BY t.collected_at DESC, t.id`,
     [filters.categoryId, filters.subCategoryId, filters.search],
   );

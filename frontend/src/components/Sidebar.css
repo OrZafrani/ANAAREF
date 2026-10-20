@@ -1,55 +1,98 @@
 .app-sidebar {
-  width: 190px;
-  min-width: 190px;
-  background: #ffffff;
-  border-inline-end: 1px solid #e5e7eb;
-  padding: 1.5rem 1rem;
+  width: 232px;
+  min-width: 232px;
+  background: var(--bg);
+  border-inline-end: 1px solid var(--line);
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 2px;
   direction: rtl;
-  box-sizing: border-box;
+}
+
+.app-sidebar {
+  gap: 24px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-draft {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-line);
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.sidebar-draft-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.sidebar-draft-title i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.sidebar-draft-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-nav-item {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.6rem;
-  padding: 0.65rem 0.85rem;
-  border-radius: 6px;
-  color: #374151;
+  gap: 10px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  color: var(--ink-2);
   text-decoration: none;
-  font-size: 0.92rem;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  background: transparent;
+  background: none;
   border: none;
   width: 100%;
   font-family: inherit;
-  transition: all 0.15s ease;
-  box-sizing: border-box;
+  transition: background .15s;
 }
 
 .sidebar-nav-item:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+  background: var(--hover);
 }
 
 .sidebar-nav-item.active {
-  background-color: #f3f4f6;
-  color: #111827;
+  background: var(--surface);
+  color: var(--sys-strong);
   font-weight: 600;
+  box-shadow: inset -3px 0 0 var(--sys), 0 0 0 1px var(--line);
 }
 
 .sidebar-item-icon {
-  color: #6b7280;
+  color: inherit;
   display: flex;
   align-items: center;
-}
-
-.sidebar-nav-item.active .sidebar-item-icon {
-  color: #111827;
 }
 
 @media (max-width: 768px) {
@@ -60,6 +103,9 @@
     align-items: center;
   }
   .sidebar-item-text {
+    display: none;
+  }
+  .sidebar-draft {
     display: none;
   }
 }

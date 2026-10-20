@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
 import CreateSimulation from './pages/CreateSimulation';
 import SelectEvents from './pages/SelectEvents';
+import { getUrgency } from './lib/urgency';
 
 describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
@@ -12,6 +13,23 @@ describe('Simulation Flow - Mockup Alignment', () => {
     localStorage.clear();
     sessionStorage.clear();
     global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+  });
+
+  describe('Urgency thresholds', () => {
+    it.each([
+      [25, 'low', 'נמוך'],
+      [26, 'medium', 'בינוני'],
+      [50, 'medium', 'בינוני'],
+      [51, 'high', 'גבוה'],
+      [75, 'high', 'גבוה'],
+      [76, 'critical', 'קריטי'],
+    ] as const)('maps %i to %s urgency', (score, level, label) => {
+      expect(getUrgency(score)).toEqual({ level, label });
+    });
+
+    it('reports missing scores as unknown', () => {
+      expect(getUrgency(null)).toEqual({ level: 'unknown', label: 'לא ידוע' });
+    });
   });
 
   it('renders global navbar and sidebar matching upper mockup', () => {
@@ -24,17 +42,18 @@ describe('Simulation Flow - Mockup Alignment', () => {
     );
 
     // Global Navbar elements
-    expect(screen.getByText('COBRA')).toBeInTheDocument();
-    expect(screen.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
-    expect(screen.getByText('מערכת יעד')).toBeInTheDocument();
-    expect(screen.getAllByText('SPECTRE').length).toBeGreaterThan(0);
-    expect(screen.getByText('ניהול לחימה')).toBeInTheDocument();
-    expect(screen.getByText('מצב כהה')).toBeInTheDocument();
-    expect(screen.getByText('מה')).toBeInTheDocument();
+    const navbar = within(screen.getByRole('banner'));
+    expect(navbar.getByText('COBRA')).toBeInTheDocument();
+    expect(navbar.getByText('בנייה, ניהול והרצה סימולציות')).toBeInTheDocument();
+    expect(navbar.getByText('מערכת יעד')).toBeInTheDocument();
+    expect(navbar.getByText('SPECTRE')).toBeInTheDocument();
+    expect(navbar.getByText('ניהול לחימה')).toBeInTheDocument();
+    expect(navbar.getByText('מצב כהה')).toBeInTheDocument();
+    expect(navbar.getByText('מה')).toBeInTheDocument();
 
     // Sidebar navigation
-    expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
-    expect(screen.getByText('ספריית תוכן')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /לוח בקרה/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ספריית תוכן/ })).toBeInTheDocument();
   });
 
   it('renders default home view and contains the new simulation trigger button', () => {
@@ -44,7 +63,8 @@ describe('Simulation Flow - Mockup Alignment', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { name: 'ניהול סימולציות' })).toBeInTheDocument();
+    // Dashboard heading and empty state
+    expect(screen.getByRole('heading', { name: 'לוח בקרה' })).toBeInTheDocument();
 
     // Verify button exists
     const newSimBtn = screen.getByRole('button', { name: /סימולציה חדשה/i });
@@ -60,10 +80,18 @@ describe('Simulation Flow - Mockup Alignment', () => {
       events: [],
       createdAt: '2026-10-19T10:00:00.000Z',
     };
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [savedSimulation] })
-      .mockResolvedValueOnce({ ok: true, status: 204 });
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/simulations' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([savedSimulation]), { status: 200 }));
+      }
+      if (url === '/api/categories/tree') {
+        return Promise.resolve(new Response('[]', { status: 200 }));
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
     global.fetch = fetchMock;
+    vi.stubGlobal('confirm', vi.fn(() => true));
 
     render(
       <MemoryRouter>
@@ -72,10 +100,9 @@ describe('Simulation Flow - Mockup Alignment', () => {
     );
 
     expect(await screen.findByText('תרגיל מהשרת')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /מחק סימולציה/i }));
+    fireEvent.click(screen.getByRole('button', { name: /מחיקת הסימולציה תרגיל מהשרת/i }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/simulations/saved-simulation-id',
       { method: 'DELETE' },
     ));
@@ -241,7 +268,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.queryByText('מקור רשמי')).not.toBeInTheDocument();
     expect(screen.queryByText('מקור פתוח')).not.toBeInTheDocument();
     expect(screen.getByText('באר שבע · IL')).toBeInTheDocument();
-    expect(screen.getByText('דחיפות גבוה')).toBeInTheDocument();
+    expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ })).not.toBeInTheDocument();
     expect(screen.getByText('דיווח כללי')).toBeInTheDocument();
 
@@ -262,7 +289,6 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
   });
-
   it('saves a simulation and selected events through the API', async () => {
     const createdAt = '2026-10-19T10:00:00.000Z';
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
@@ -312,11 +338,64 @@ describe('Simulation Flow - Mockup Alignment', () => {
       method: 'POST',
     }));
     const postCall = vi.mocked(global.fetch).mock.calls.find((call) => String(call[0]).includes('/api/simulations'));
-    const requestBody = JSON.parse(
-      (postCall?.[1] as any)?.body as string,
-    );
+    expect(postCall?.[1]?.body).toBeDefined();
+    const requestBody = JSON.parse(String(postCall?.[1]?.body));
     expect(requestBody.events).toHaveLength(1);
     expect(requestBody.events[0].title).toBe('זיהוי תנועה חשודה בגדר המערכת');
     expect(localStorage.getItem('cobra_simulations')).toBeNull();
+  });
+
+  it('lists saved simulations for the selected system and filters by difficulty', async () => {
+    const base = { description: '', events: [], createdAt: '2026-10-19T10:00:00.000Z' };
+    const savedSimulations = [
+      { ...base, id: 's1', title: 'מטח פתיחה', difficulty: 'קשה' },
+      { ...base, id: 's2', title: 'תרגול בסיסי', difficulty: 'קל', sys: 'spectre' },
+      { ...base, id: 's3', title: 'אירוע ניהול לחימה', difficulty: 'בינוני', sys: 'cm' },
+    ];
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => Promise.resolve(
+      new Response(JSON.stringify(String(input).includes('/api/simulations') ? savedSimulations : []), { status: 200 }),
+    )));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    // SPECTRE is the default system; older saves without sys count as SPECTRE
+    expect(await screen.findByText('מטח פתיחה')).toBeInTheDocument();
+    expect(screen.getByText('תרגול בסיסי')).toBeInTheDocument();
+    expect(screen.queryByText('אירוע ניהול לחימה')).not.toBeInTheDocument();
+    expect(await screen.findByText('מוצגות 2 מתוך 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'קל' }));
+    await waitFor(() => expect(screen.queryByText('מטח פתיחה')).not.toBeInTheDocument());
+    expect(screen.getByText('מוצגות 1 מתוך 2')).toBeInTheDocument();
+  });
+
+  it('opens the simulation summary drawer from a card', async () => {
+    const savedSimulation = {
+      id: 's1',
+      title: 'מטח פתיחה',
+      description: 'תרגול תגובה מהירה',
+      difficulty: 'בינוני',
+      events: [{ id: 'e1', title: 'זיהוי רחפן', category: 'מבצעי', minute: 8, description: 'כלי טיס זעיר' }],
+      createdAt: '2026-10-19T10:00:00.000Z',
+    };
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => Promise.resolve(
+      new Response(JSON.stringify(String(input).includes('/api/simulations') ? [savedSimulation] : []), { status: 200 }),
+    )));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'מטח פתיחה' }));
+    const drawer = screen.getByRole('dialog', { name: 'מטח פתיחה' });
+    expect(drawer).toHaveTextContent('אירועים לפי סדר הזרמה · 1');
+    expect(drawer).toHaveTextContent('T+8');
+    expect(drawer).toHaveTextContent('30 דק׳');
   });
 });

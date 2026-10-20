@@ -11,9 +11,11 @@
     "migrate:down": "node ./migrate.cjs down",
     "migrate:create": "node-pg-migrate create -m migrations -j sql --migration-filename-format index",
     "seed:library": "tsx src/seed/categorySeedLoader.ts",
+    "kafka:consume": "tsx src/tools/mockConsumer.ts",
     "test": "vitest run"
   },
   "dependencies": {
+    "@confluentinc/kafka-javascript": "1.10.1",
     "cors": "^2.8.5",
     "csv-parse": "^7.0.3",
     "dotenv": "^16.4.7",
@@ -30,7 +32,7 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.23.1",
-    "typescript": "^5.7.2",
+    "ajv": "^8.20.0",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
     "vitest": "^5.0.5"
