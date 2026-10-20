@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CloseIcon } from '../Icons';
+import { aiReportTitle } from '../../lib/aiSimulation';
 import type { AiSimulationReport } from '../../types/aiSimulation';
 
 interface Props {
@@ -92,7 +93,7 @@ export default function AiReportEditor({ report, durationSeconds, onSave, onClos
         <form onSubmit={submit}>
           <div className="ai-editor-fields">
             {error && <p role="alert" className="ai-alert">{error}</p>}
-            <label>כותרת<input name="report_title" required maxLength={500} defaultValue={payload.report_title ?? ''} /></label>
+            <label>כותרת<input name="report_title" required maxLength={500} defaultValue={payload.report_title ? aiReportTitle(report) : ''} /></label>
             <label>תוכן הדיווח<textarea name="original_content" required rows={4} maxLength={50000} defaultValue={payload.original_content} /></label>
             <div className="ai-field-grid">
               <label>עיתוי בסימולציה (דקה)<input name="minute" required type="number" min={0} max={durationSeconds / 60} step="any" defaultValue={report.dispatch_offset_s / 60} /></label>

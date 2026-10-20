@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRightIcon, CheckIcon, PlusIcon } from './Icons';
 import NewSimulationModal from './NewSimulationModal';
+import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import './BuilderHeader.css';
 
 interface BuilderHeaderProps {
@@ -34,6 +35,7 @@ export default function BuilderHeader({
   showHeaderActions = true,
 }: BuilderHeaderProps) {
   const navigate = useNavigate();
+  const { sys } = useAppSettings();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -77,7 +79,7 @@ export default function BuilderHeader({
 
             {/* Left side (RTL actions) */}
             {showHeaderActions && <div className="top-bar-left">
-              <span className="badge-spectre">SPECTRE</span>
+              <span className="badge b-sys">{SYSTEM_INFO[sys].name}</span>
 
               <span className="save-status">
                 <CheckIcon size={14} />

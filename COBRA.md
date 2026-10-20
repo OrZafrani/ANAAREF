@@ -363,7 +363,6 @@ stateDiagram-v2
 | `report_url` | `string` | UK | No | Canonical URL of the source posting. |
 | `report_title` | `string` | | Yes | Headline or title (`NULL` if absent). |
 | `original_language` | `string` | | No | ISO 639-1 two-letter language code (e.g., `ar`, `he`, `en`). |
-| `matches` | `string[]` | | No | Array of trigger alert keywords matched during parsing. |
 | `published_at` | `timestamp`| | Yes | ISO 8601 UTC timestamp of online publication. |
 | `collected_at` | `timestamp`| | No | ISO 8601 UTC timestamp when ingested. |
 | `happened_at` | `timestamp`| | Yes | ISO 8601 UTC timestamp when the reported incident took place (extracted by NER). |
@@ -412,11 +411,10 @@ stateDiagram-v2
 Cobra supports direct simulation loading via CSV files. The CSV must match the following header specification:
 
 ```csv
-schema_version,is_official,platform,account_name,channel_name,report_url,report_title,original_language,matches,published_at,collected_at,dispatch_offset_s,original_content,translated_content,threat_level,happened_at,country,city,lat,long,red_injured_count,red_death_count,blue_injured_count,blue_death_count,fastbreak_model_version
+schema_version,is_official,platform,account_name,channel_name,report_url,report_title,original_language,published_at,collected_at,dispatch_offset_s,original_content,translated_content,threat_level,happened_at,country,city,lat,long,red_injured_count,red_death_count,blue_injured_count,blue_death_count,fastbreak_model_version
 ```
 
 - **Special Column:** `dispatch_offset_s` (Integer $\ge 0$): Denotes the exact number of seconds elapsed from simulation start ($T_{\text{start}}$) until this specific report is pushed to Kafka.
-- **Delimiter Rules:** Semicolon `;` is used as an array delimiter for multi-value strings such as `matches` (e.g., `alert;strike;incident`).
 - **Null Values:** Empty fields between commas `,` represent `NULL` values. For count columns, an empty field parses to `NULL` (unknown), whereas literal `0` parses to integer zero.
 
 ### 8.4 PostgreSQL Relational Database Schema
@@ -467,7 +465,6 @@ erDiagram
         text report_url
         text report_title "Nullable"
         text original_language "ISO 639-1"
-        text_array matches "Trigger keywords"
         timestamp published_at "Nullable"
         timestamp happened_at "Nullable"
         timestamp collected_at
@@ -497,7 +494,6 @@ erDiagram
         text report_url UK "Canonical form"
         text report_title "Nullable"
         text original_language "ISO 639-1"
-        text_array matches
         timestamp published_at "Nullable"
         timestamp happened_at "Nullable"
         timestamp collected_at

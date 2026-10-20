@@ -41,7 +41,6 @@ function isDraft(value: unknown): value is AiSimulationDraft {
       && ['account_name', 'channel_name', 'report_title', 'original_language', 'translated_content', 'country', 'city', 'fastbreak_model_version']
         .every((key) => isNullableText(p[key]))
       && ['published_at', 'happened_at'].every((key) => p[key] === null || isDate(p[key]))
-      && (p.matches === null || (Array.isArray(p.matches) && p.matches.every((m: unknown) => typeof m === 'string')))
       && ['lat', 'long', 'threat_level', 'red_injured_count', 'red_death_count', 'blue_injured_count', 'blue_death_count']
         .every((key) => p[key] === null || isNumber(p[key]));
   });

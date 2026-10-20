@@ -7,12 +7,13 @@ import AiReportReview from '../components/ai/AiReportReview';
 import AiReportEditor from '../components/ai/AiReportEditor';
 import { AiIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '../components/Icons';
 import {
-  aiSimulationService, createAiDraft, DIFFICULTY_PRESETS, formatOffset, generationFingerprint,
-  REPORT_KIND_LABELS, templateToAiReport, validateAiReports, validateAiSettings,
+  aiReportTitle, aiSimulationService, createAiDraft, DIFFICULTY_PRESETS, formatOffset, generationFingerprint,
+  REPORT_KIND_LABELS, reorderAiReports, templateToAiReport, validateAiReports, validateAiSettings,
 } from '../lib/aiSimulation';
 import { loadAiSimulations, saveAiSimulation } from '../lib/aiSimulationStorage';
-import type { LibraryTemplate } from '../lib/libraryApi';
+import type { CategoryNode, LibraryTemplate } from '../lib/libraryApi';
 import type { AiSimulationDraft, AiSimulationReport, BuilderStep } from '../types/aiSimulation';
+import type { SimulationEvent } from '../types/simulation';
 import './SelectEvents.css';
 import './AiSimulation.css';
 
@@ -43,6 +44,9 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<'chat' | 'generation' | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [library, setLibrary] = useState<{ categories: CategoryNode[]; templates: LibraryTemplate[] }>({ categories: [], templates: [] });
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState('');
   const [editing, setEditing] = useState<AiSimulationReport | null>(null);
   const [confirmRegeneration, setConfirmRegeneration] = useState(false);
   const mounted = useRef(true);
@@ -62,6 +66,19 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
   useEffect(() => {
     contentRef.current?.scrollIntoView?.({ block: 'start' });
   }, [draft?.step, error, confirmRegeneration]);
+  useEffect(() => {
+    if (!libraryOpen) return;
+    let active = true;
+    setLibraryLoading(true);
+    setLibraryError('');
+    aiSimulationService.loadLibrary()
+      .then((result) => { if (active) setLibrary(result); })
+      .catch((loadError: unknown) => {
+        if (active) setLibraryError(loadError instanceof Error ? loadError.message : 'טעינת ספריית התוכן נכשלה');
+      })
+      .finally(() => { if (active) setLibraryLoading(false); });
+    return () => { active = false; };
+  }, [libraryOpen]);
 
   const update = (next: AiSimulationDraft) => {
     setDraft({ ...next, status: 'draft' });
@@ -156,6 +173,20 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
     });
   };
   const selectedLibraryIds = new Set(draft.reports.filter((report) => report.template_id !== null).map((report) => `library-${report.template_id}`));
+  const libraryEvents: SimulationEvent[] = library.templates.map((template) => ({
+    id: `library-${template.id}`,
+    title: template.report_title || 'דיווח ללא כותרת',
+    description: template.original_content,
+    category: template.category_name ?? 'ספריית תוכן',
+    categoryName: template.category_name,
+    categoryId: template.category_id,
+    subCategory: template.sub_category_name ?? undefined,
+    subCategoryId: template.sub_category_id,
+    city: template.city,
+    country: template.country,
+    threatLevel: template.threat_level,
+    minute: 1,
+  }));
 
   return (
     <div className="ai-builder" dir="rtl">
@@ -166,7 +197,10 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
         stepLabels={['תרחיש בשיחה', 'בדיקה ועריכה', 'שמירה']}
         availableStep={draft.reports.length && !stale ? 3 : 1}
         disabled={busy !== null}
-        showHeaderActions={false}
+        isSaved={!dirty && draftId !== null}
+        statusText={dirty ? 'שינויים שלא נשמרו' : draftId ? 'נשמר מקומית' : 'טרם נשמר'}
+        onSave={() => save('saved')}
+        onSaveDraft={() => save('draft')}
         onStepClick={goTo}
       />
       <div className="ai-main" ref={contentRef}>
@@ -190,6 +224,14 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
           <>
             <AiReportReview
               reports={draft.reports} busy={busy !== null} onEdit={setEditing}
+              simulation={draft.simulation} generation={draft.generation} onSettings={() => goTo(1)}
+              onReorder={(sourceId, targetId) => {
+                try {
+                  update({ ...draft, reports: reorderAiReports(draft.reports, sourceId, targetId) });
+                } catch (reorderError) {
+                  setError(`שינוי סדר הדיווחים נכשל: ${reorderError instanceof Error ? reorderError.message : 'שגיאה לא צפויה'}`);
+                }
+              }}
               onRemove={(report) => update({ ...draft, reports: draft.reports.filter((item) => item.client_id !== report.client_id) })}
               onLibrary={() => setLibraryOpen(true)} onRegenerate={requestGeneration}
             />
@@ -213,7 +255,7 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
             <p className="ai-muted">הוספה והסרה ידניות עשויות לשנות את הכמות ואת היחס בין סוגי הדיווחים.</p>
             <ol className="ai-review-timeline">
               {[...draft.reports].sort((a, b) => a.dispatch_offset_s - b.dispatch_offset_s).map((report) => (
-                <li key={report.client_id}><span className="ai-offset" dir="ltr">T+{formatOffset(report.dispatch_offset_s)}</span><span className={`ai-kind ai-kind-${report.kind}`}>{REPORT_KIND_LABELS[report.kind]}</span><span>{report.payload.report_title}</span></li>
+                <li key={report.client_id}><span className="ai-offset" dir="ltr">T+{formatOffset(report.dispatch_offset_s)}</span><span className={`ai-kind ai-kind-${report.kind}`}>{REPORT_KIND_LABELS[report.kind]}</span><span>{aiReportTitle(report)}</span></li>
               ))}
             </ol>
             <footer className="ai-actions">
@@ -226,9 +268,14 @@ function AiSimulationWorkspace({ draftId }: { draftId: string | null }) {
       </div>
       <ContentLibraryModal
         isOpen={libraryOpen} onClose={() => setLibraryOpen(false)} selectedIds={selectedLibraryIds}
-        loadLibrary={aiSimulationService.loadLibrary} onToggleTemplate={toggleTemplate}
+        categories={library.categories} availableEvents={libraryEvents}
+        isLoading={libraryLoading} error={libraryError} totalCount={library.templates.length}
         allowCustom={false} maxMinute={draft.simulation.length_s / 60}
-        onToggle={() => setError('הוספת דיווח נכשלה: יש לבחור תבנית מלאה מהספרייה.')}
+        onToggle={(event) => {
+          const template = library.templates.find((item) => `library-${item.id}` === event.id);
+          if (!template) { setError('הוספת דיווח נכשלה: יש לבחור תבנית מלאה מהספרייה.'); return; }
+          toggleTemplate(template, event.minute);
+        }}
         onAddCustom={() => setError('דיווחים מותאמים אינם זמינים בבונה AI. אפשר לערוך דיווח קיים.')}
       />
       {editing && <AiReportEditor report={editing} durationSeconds={draft.simulation.length_s} onClose={() => setEditing(null)} onSave={(report) => {

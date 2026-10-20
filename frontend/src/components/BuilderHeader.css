@@ -1,7 +1,7 @@
 /* White Top Bar Wrapper stretching full width across content area */
 .builder-top-bar-wrapper {
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
   width: 100%;
   box-sizing: border-box;
   direction: rtl;
@@ -26,9 +26,9 @@
 }
 
 .btn-dark-new-sim {
-  background: #374151;
-  color: #ffffff;
-  border: 1px solid #374151;
+  background: var(--neutral-btn);
+  color: #FFFFFF;
+  border: 1px solid var(--neutral-btn);
   padding: 0.5rem 1.15rem;
   border-radius: 6px;
   font-size: 0.88rem;
@@ -39,12 +39,12 @@
   gap: 0.45rem;
   font-family: inherit;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .btn-dark-new-sim:hover {
-  background: #1f2937;
-  border-color: #1f2937;
+  background: var(--neutral-btn-hover);
+  border-color: var(--neutral-btn-hover);
 }
 
 /* Builder Top Bar (Action row) */
@@ -68,7 +68,7 @@
   gap: 0.4rem;
   background: none;
   border: none;
-  color: #374151;
+  color: var(--ink-2);
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
@@ -79,8 +79,8 @@
 }
 
 .btn-back-dashboard:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: var(--surface-2);
+  color: var(--ink);
 }
 
 .title-section {
@@ -90,14 +90,14 @@
 
 .sub-title-breadcrumb {
   font-size: 0.76rem;
-  color: #6b7280;
+  color: var(--muted);
   margin-bottom: 0.15rem;
 }
 
 .main-title {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   margin: 0;
   max-width: 450px;
   white-space: nowrap;
@@ -113,9 +113,9 @@
 }
 
 .badge-spectre {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #b45309;
+  background: var(--sys-soft);
+  border: 1px solid var(--sys-line);
+  color: var(--sys-strong);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -128,17 +128,17 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.84rem;
-  color: #4b5563;
+  color: var(--ink-2);
 }
 
 .save-status svg {
-  color: #059669;
+  color: var(--ok);
 }
 
 .top-text-btn {
   background: none;
   border: none;
-  color: #4b5563;
+  color: var(--ink-2);
   font-size: 0.88rem;
   cursor: pointer;
   padding: 0.4rem 0.65rem;
@@ -148,14 +148,14 @@
 }
 
 .top-text-btn:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: var(--surface-2);
+  color: var(--ink);
 }
 
 .top-outline-btn {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
@@ -166,15 +166,15 @@
 }
 
 .top-outline-btn:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-  color: #111827;
+  background-color: var(--surface-2);
+  border-color: var(--line-3);
+  color: var(--ink);
 }
 
 .top-gold-btn {
-  background: #e5a81e;
-  border: 1px solid #e5a81e;
-  color: #ffffff;
+  background: var(--sys);
+  border: 1px solid var(--sys);
+  color: var(--on-sys);
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
@@ -182,12 +182,12 @@
   border-radius: 6px;
   font-family: inherit;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .top-gold-btn:hover {
-  background: #d89b10;
-  border-color: #d89b10;
+  background: var(--sys-hover);
+  border-color: var(--sys-hover);
 }
 
 /* Stepper Container sitting on gray background */
@@ -208,11 +208,11 @@
 .stepper-pill-group {
   display: inline-flex;
   align-items: center;
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 8px;
   padding: 0.15rem;
   gap: 0.5rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
 }
 
 .stepper-pill {
@@ -221,20 +221,20 @@
   gap: 0.5rem;
   padding: 0.4rem 1.15rem;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid var(--line);
+  background: var(--surface);
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
 }
 
 .stepper-pill:hover:not(.active) {
-  background-color: #f9fafb;
+  background-color: var(--surface-2);
 }
 
 .stepper-pill.active {
-  border: 1.5px solid #e5a81e;
-  background-color: #ffffff;
+  border: 1.5px solid var(--sys);
+  background-color: var(--surface);
 }
 
 .step-circle {
@@ -246,31 +246,31 @@
   justify-content: center;
   font-size: 0.76rem;
   font-weight: 700;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
+  border: 1px solid var(--line-2);
+  color: var(--muted);
   background: transparent;
 }
 
 .stepper-pill.active .step-circle {
-  border-color: #e5a81e;
-  background: #e5a81e;
-  color: #ffffff;
+  border-color: var(--sys);
+  background: var(--sys);
+  color: var(--on-sys);
 }
 
 .stepper-pill.completed .step-circle {
-  border-color: #059669;
-  background: #059669;
-  color: #ffffff;
+  border-color: var(--sys-line);
+  background: var(--sys-soft);
+  color: var(--sys-strong);
 }
 
 .step-label {
   font-size: 0.88rem;
-  color: #4b5563;
+  color: var(--ink-2);
   font-weight: 500;
 }
 
 .stepper-pill.active .step-label {
-  color: #111827;
+  color: var(--ink);
   font-weight: 600;
 }
 

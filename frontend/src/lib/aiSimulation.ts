@@ -70,6 +70,23 @@ export function formatOffset(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 }
 
+export function aiReportTitle(report: AiSimulationReport): string {
+  const title = report.payload.report_title || 'דיווח ללא כותרת';
+  return report.origin === 'ai' ? title.replace(/ · \d+$/, '') : title;
+}
+
+export function reorderAiReports(reports: AiSimulationReport[], sourceId: string, targetId: string): AiSimulationReport[] {
+  const ordered = [...reports].sort((a, b) => a.dispatch_offset_s - b.dispatch_offset_s);
+  const source = ordered.findIndex((report) => report.client_id === sourceId);
+  const target = ordered.findIndex((report) => report.client_id === targetId);
+  if (source < 0 || target < 0) throw new Error('הדיווח להזזה לא נמצא בסימולציה.');
+  if (source === target) return reports;
+  const slots = ordered.map((report) => report.dispatch_offset_s);
+  const [moved] = ordered.splice(source, 1);
+  ordered.splice(target, 0, moved);
+  return ordered.map((report, index) => ({ ...report, dispatch_offset_s: slots[index] }));
+}
+
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 400));
 
 async function replyToScenario(draft: AiSimulationDraft, message: string): Promise<AiSimulationDraft> {
@@ -139,9 +156,8 @@ async function generateReports(draft: AiSimulationDraft): Promise<AiSimulationRe
     const offset = Math.floor(i * 60 / draft.generation.reports_per_minute);
     const source = kind === 'duplicate' ? originals[i % originals.length] : undefined;
     const stage = MOCK_REPORT_STAGES[i % MOCK_REPORT_STAGES.length];
-    const payload = source ? { ...source.payload, matches: [...(source.payload.matches ?? [])] } : {
+    const payload = source ? { ...source.payload } : {
       ...MOCK_REPORT_PAYLOAD,
-      matches: [...(MOCK_REPORT_PAYLOAD.matches ?? [])],
       platform: i % 3 === 0 ? 'telegram' : i % 3 === 1 ? 'web' : 'twitter',
       is_official: kind === 'original' && i % 3 === 1,
       city: location?.city ?? null,
@@ -160,7 +176,7 @@ async function generateReports(draft: AiSimulationDraft): Promise<AiSimulationRe
         ...payload,
         report_title: kind === 'duplicate' && source
           ? `דיווח חוזר: ${source.payload.report_title}`
-          : `${kind === 'noise' ? 'הודעת שגרה: בדיקת מערכת כריזה' : kind === 'false' ? 'שמועה לא מאומתת לצורכי תרגול' : stage.title} · ${location?.city ?? 'תרחיש התרגול'} · ${i + 1}`,
+          : `${kind === 'noise' ? 'הודעת שגרה: בדיקת מערכת כריזה' : kind === 'false' ? 'שמועה לא מאומתת לצורכי תרגול' : stage.title} · ${location?.city ?? 'תרחיש התרגול'}`,
         report_url: `https://example.invalid/cobra/${draft.simulation.id}/report-${i + 1}`,
         published_at: new Date(baseTime + offset * 1000).toISOString(),
         happened_at: new Date(baseTime + offset * 1000).toISOString(),
@@ -180,7 +196,7 @@ export function templateToAiReport(template: LibraryTemplate, minute: number): A
     template_created_at: _createdAt, template_updated_at: _updatedAt, ...payload
   } = template;
   return {
-    client_id: crypto.randomUUID(), template_id: id, payload: { ...payload, reality_id: 1, matches: payload.matches ? [...payload.matches] : null },
+    client_id: crypto.randomUUID(), template_id: id, payload: { ...payload, reality_id: 1 },
     dispatch_offset_s: minute * 60, kind: 'original', origin: 'library',
     category_name: category_name ?? 'ספריית תוכן',
   };

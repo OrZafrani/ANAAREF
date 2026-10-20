@@ -17,7 +17,6 @@ export const MOCK_REPORT_PAYLOAD: ReportPayload = {
   report_url: 'https://example.invalid/cobra/demo',
   report_title: 'דיווח ראשוני לצורכי תרגול',
   original_language: 'he',
-  matches: ['תרגיל'],
   published_at: '2026-01-01T08:00:00.000Z',
   happened_at: '2026-01-01T08:00:00.000Z',
   collected_at: '2026-01-01T08:01:00.000Z',

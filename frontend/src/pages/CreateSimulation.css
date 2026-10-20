@@ -12,11 +12,11 @@
 
 /* White Section Cards */
 .builder-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1.75rem 2rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
   text-align: start;
   direction: rtl;
 }
@@ -28,19 +28,19 @@
 .builder-card-title {
   font-size: 1.18rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
   margin: 0 0 0.35rem 0;
 }
 
 .builder-card-subtitle {
   font-size: 0.84rem;
-  color: #6b7280;
+  color: var(--muted);
   margin: 0;
 }
 
 .builder-card-divider {
   height: 1px;
-  background-color: #f3f4f6;
+  background-color: var(--surface-2);
   margin-bottom: 1.5rem;
 }
 
@@ -65,12 +65,12 @@
 .builder-label {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-2);
 }
 
 .builder-required-tag {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .builder-input,
@@ -78,11 +78,11 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.65rem 0.85rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--line-2);
   border-radius: 6px;
   font-size: 0.92rem;
-  color: #111827;
-  background-color: #ffffff;
+  color: var(--ink);
+  background-color: var(--surface);
   font-family: inherit;
   direction: rtl;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -90,20 +90,20 @@
 
 .builder-input::placeholder,
 .builder-textarea::placeholder {
-  color: #9ca3af;
+  color: var(--muted);
   font-size: 0.88rem;
 }
 
 .builder-input:focus,
 .builder-textarea:focus {
   outline: none;
-  border-color: #e5a81e;
-  box-shadow: 0 0 0 2px rgba(229, 168, 30, 0.2);
+  border-color: var(--sys);
+  box-shadow: 0 0 0 3px var(--sys-soft);
 }
 
 .builder-input.has-error,
 .builder-textarea.has-error {
-  border-color: #ef4444;
+  border-color: var(--danger);
 }
 
 .builder-textarea {
@@ -114,7 +114,7 @@
 
 .builder-error-msg {
   font-size: 0.8rem;
-  color: #ef4444;
+  color: var(--danger);
   margin: 0.35rem 0 0 0;
 }
 
@@ -128,14 +128,46 @@
 
 @media (max-width: 768px) {
   .difficulty-3grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .builder-page-body {
+    padding: 0 0.9rem 2rem;
+    gap: 1rem;
+  }
+
+  .builder-card {
+    padding: 1.1rem;
+  }
+
+  .difficulty-3grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .difficulty-pill-card {
+    min-height: 0;
+    padding: 1rem;
+  }
+
+  .builder-bottom-bar {
+    gap: 0.75rem;
+  }
+
+  .btn-bottom-prev,
+  .btn-bottom-next {
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 0.9rem;
   }
 }
 
 .difficulty-pill-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 1.25rem;
   cursor: pointer;
   text-align: start;
@@ -148,14 +180,14 @@
 }
 
 .difficulty-pill-card:hover {
-  border-color: #cbd5e1;
-  background: #fafafa;
+  border-color: var(--line-2);
+  background: var(--surface-2);
 }
 
 .difficulty-pill-card.selected {
-  border: 1.5px solid #e5a81e;
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(229, 168, 30, 0.12);
+  border: 1.5px solid var(--sys);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--sys-soft);
 }
 
 .difficulty-top-row {
@@ -168,29 +200,29 @@
 .difficulty-level-name {
   font-size: 0.98rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
 }
 
 .difficulty-level-icon {
-  color: #374151;
+  color: var(--ink-2);
   display: flex;
   align-items: center;
 }
 
 .difficulty-pill-card.selected .difficulty-level-icon {
-  color: #e5a81e;
+  color: var(--sys-strong);
 }
 
 .difficulty-level-desc {
   font-size: 0.82rem;
-  color: #4b5563;
+  color: var(--ink-2);
   margin: 0 0 0.85rem 0;
   line-height: 1.4;
 }
 
 .difficulty-level-metrics {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--muted);
   direction: rtl;
   text-align: start;
   unicode-bidi: plaintext;
@@ -206,9 +238,9 @@
 }
 
 .btn-bottom-prev {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  color: var(--muted);
   font-size: 0.9rem;
   font-weight: 500;
   padding: 0.55rem 1.4rem;
@@ -224,13 +256,13 @@
 .btn-bottom-prev:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #f9fafb;
+  background: var(--surface-2);
 }
 
 .btn-bottom-next {
-  background: #e5a81e;
-  border: 1px solid #e5a81e;
-  color: #ffffff;
+  background: var(--sys);
+  border: 1px solid var(--sys);
+  color: var(--on-sys);
   font-size: 0.9rem;
   font-weight: 600;
   padding: 0.55rem 1.75rem;
@@ -241,10 +273,10 @@
   gap: 0.45rem;
   font-family: inherit;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .btn-bottom-next:hover {
-  background: #d89b10;
-  border-color: #d89b10;
+  background: var(--sys-hover);
+  border-color: var(--sys-hover);
 }

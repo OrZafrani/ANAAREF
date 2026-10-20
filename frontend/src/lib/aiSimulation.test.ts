@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MOCK_LIBRARY_TEMPLATES } from '../data/aiSimulationFixtures';
 import {
-  aiSimulationService, createAiDraft, DIFFICULTY_PRESETS, formatOffset,
-  generationFingerprint, templateToAiReport, validateAiReports, validateAiSettings,
+  aiReportTitle, aiSimulationService, createAiDraft, DIFFICULTY_PRESETS, formatOffset,
+  generationFingerprint, reorderAiReports, templateToAiReport, validateAiReports, validateAiSettings,
 } from './aiSimulation';
 import { AI_SIMULATIONS_KEY, deleteAiSimulation, loadAiSimulations, saveAiSimulation } from './aiSimulationStorage';
 import type { AiSimulationDraft } from '../types/aiSimulation';
@@ -37,6 +37,21 @@ describe('AI frontend mock contracts', () => {
     expect(reports.every((r) => r.payload.collected_at.endsWith('Z') && r.payload.blue_injured_count === null)).toBe(true);
     expect(reports.some((r) => r.payload.city === 'חיפה')).toBe(true);
     expect(reports.some((r) => r.payload.city === 'ירושלים')).toBe(true);
+    expect(reports.every((r) => !/ · \d+$/.test(r.payload.report_title ?? ''))).toBe(true);
+  });
+
+  it('reorders reports between existing time slots without mutating payloads, including tied slots', async () => {
+    const reports = (await generate(configuredDraft())).slice(0, 4);
+    reports[2] = { ...reports[2], dispatch_offset_s: reports[1].dispatch_offset_s };
+    const original = structuredClone(reports);
+    const moved = reorderAiReports(reports, reports[0].client_id, reports[3].client_id);
+    expect(moved.map((r) => r.client_id)).toEqual([reports[1], reports[2], reports[3], reports[0]].map((r) => r.client_id));
+    expect(moved.map((r) => r.dispatch_offset_s)).toEqual([0, 15, 15, 45]);
+    expect(moved[3].payload).toEqual(reports[0].payload);
+    expect(reports).toEqual(original);
+    expect(reorderAiReports(moved, reports[0].client_id, reports[1].client_id).map((r) => r.client_id)).toEqual(reports.map((r) => r.client_id));
+    expect(reorderAiReports(reports, reports[0].client_id, reports[0].client_id)).toBe(reports);
+    expect(() => reorderAiReports(reports, 'missing', reports[0].client_id)).toThrow('לא נמצא');
   });
 
   it('supports minimum and maximum generation sizes within simulation duration', async () => {
@@ -75,11 +90,13 @@ describe('AI frontend mock contracts', () => {
   it('copies complete library payloads without mutating templates or conflating null and zero', () => {
     const template = structuredClone(MOCK_LIBRARY_TEMPLATES[0]);
     const report = templateToAiReport(template, 1.5);
+    expect(aiReportTitle({ ...report, origin: 'ai', payload: { ...report.payload, report_title: 'תרגיל · חיפה · 12' } })).toBe('תרגיל · חיפה');
+    expect(aiReportTitle({ ...report, payload: { ...report.payload, report_title: 'תרגיל · 12' } })).toBe('תרגיל · 12');
+    expect(aiReportTitle({ ...report, origin: 'ai', payload: { ...report.payload, report_title: 'אירוע בכביש 90' } })).toBe('אירוע בכביש 90');
     expect(report).toMatchObject({ template_id: template.id, dispatch_offset_s: 90, origin: 'library', payload: { blue_death_count: 0, blue_injured_count: null, city: 'חיפה', reality_id: 1 } });
     report.payload.report_title = 'edited';
-    report.payload.matches?.push('new');
     expect(template.report_title).not.toBe('edited');
-    expect(template.matches).not.toContain('new');
+    expect(report.payload).not.toHaveProperty('matches');
     expect(validateAiReports({ ...configuredDraft(), reports: [{ ...report, dispatch_offset_s: 9999 }] })).toHaveLength(1);
     expect(formatOffset(90)).toBe('01:30');
   });

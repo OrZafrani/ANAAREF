@@ -65,6 +65,9 @@ describe('AI simulation frontend flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'הוספה מהספרייה' }));
     await screen.findByRole('button', { name: 'הוסף לסימולציה: צוותי חילוץ הגיעו לאזור התרגיל' });
+    fireEvent.change(screen.getByLabelText('דקה בסימולציה: צוותי חילוץ הגיעו לאזור התרגיל'), { target: { value: '11' } });
+    expect(screen.getByRole('button', { name: 'הוסף לסימולציה: צוותי חילוץ הגיעו לאזור התרגיל' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'הוסף לסימולציה: צוותי חילוץ הגיעו לאזור התרגיל' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('דקה בסימולציה: צוותי חילוץ הגיעו לאזור התרגיל'), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'הוסף לסימולציה: צוותי חילוץ הגיעו לאזור התרגיל' }));
     fireEvent.click(screen.getByRole('button', { name: 'סיום והמשך' }));
@@ -85,6 +88,7 @@ describe('AI simulation frontend flow', () => {
     expect(saved.reports.find((report) => report.template_id === MOCK_LIBRARY_TEMPLATES[0].id)).toMatchObject({
       dispatch_offset_s: 120, payload: { platform: 'telegram', city: 'חיפה', lat: 32.794, blue_death_count: 0, blue_injured_count: null },
     });
+    expect(saved.reports.every((report) => !('matches' in report.payload))).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'לוח הבקרה' }));
     expect(screen.getByRole('heading', { name: /סימולציות AI מקומיות/ })).toBeInTheDocument();
@@ -93,18 +97,111 @@ describe('AI simulation frontend flow', () => {
     expect(screen.getByText('דיווח שנערך')).toBeInTheDocument();
   });
 
-  it('shows save options only at the final step and restores a saved draft', async () => {
-    const view = renderBuilder();
-    expect(screen.queryByRole('button', { name: 'שמירה כטיוטה' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'שמירה', exact: true })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'סגירה', exact: true })).not.toBeInTheDocument();
-    expect(screen.queryByText('טרם נשמר')).not.toBeInTheDocument();
+  it('shows a mock library loading error and retries when reopened', async () => {
+    vi.spyOn(aiSimulationService, 'loadLibrary').mockRejectedValueOnce(new Error('demo library unavailable'));
+    renderBuilder();
     await makeReports();
-    expect(screen.queryByRole('button', { name: 'שמירה כטיוטה' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'המשך לשמירה' }));
-    expect(screen.getAllByRole('button', { name: 'שמירה כטיוטה' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'שמירת הסימולציה' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'הוספה מהספרייה' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('demo library unavailable');
+    fireEvent.click(screen.getByRole('button', { name: 'סיום והמשך' }));
+    fireEvent.click(screen.getByRole('button', { name: 'הוספה מהספרייה' }));
+    expect(await screen.findByRole('button', { name: 'הוסף לסימולציה: צוותי חילוץ הגיעו לאזור התרגיל' })).toBeEnabled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('drags reports between delivery slots and persists the reordered list', async () => {
+    const view = renderBuilder();
+    await makeReports();
+    const cards = screen.getAllByRole('article');
+    const titles = cards.map((card) => within(card).getByRole('heading').textContent);
+    expect(titles.every((title) => !/ · \d+$/.test(title ?? ''))).toBe(true);
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    fireEvent.dragStart(within(cards[0]).getByRole('button', { name: /^הזזת דיווח:/ }), { dataTransfer });
+    fireEvent.dragOver(cards[2], { dataTransfer });
+    expect(cards[2]).toHaveClass('ai-report-drop-target');
+    fireEvent.drop(cards[2], { dataTransfer });
+    const reordered = screen.getAllByRole('article');
+    expect(reordered.map((card) => within(card).getByRole('heading').textContent)).toEqual([titles[1], titles[2], titles[0], titles[3], titles[4]]);
+    expect(reordered.map((card) => within(card).getByText(/^T\+/).textContent)).toEqual(['T+00:00', 'T+02:00', 'T+04:00', 'T+06:00', 'T+08:00']);
     fireEvent.click(screen.getByRole('button', { name: 'שמירה כטיוטה' }));
+    const saved = loadAiSimulations()[0];
+    expect(saved.reports.map((r) => r.payload.report_title)).toEqual([titles[1], titles[2], titles[0], titles[3], titles[4]]);
+    view.unmount();
+    renderBuilder(`/simulations/ai?id=${saved.simulation.id}`);
+    expect(screen.getAllByRole('article').map((card) => within(card).getByRole('heading').textContent)).toEqual(saved.reports.map((r) => r.payload.report_title));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('supports move buttons and disables reordering in filtered views', async () => {
+    renderBuilder();
+    await makeReports();
+    const cards = screen.getAllByRole('article');
+    const firstTitle = within(cards[0]).getByRole('heading').textContent;
+    expect(within(cards[0]).getByRole('button', { name: /^העברה למעלה:/ })).toBeDisabled();
+    expect(within(cards[4]).getByRole('button', { name: /^העברה למטה:/ })).toBeDisabled();
+    fireEvent.click(within(cards[0]).getByRole('button', { name: /^העברה למטה:/ }));
+    expect(within(screen.getAllByRole('article')[1]).getByRole('heading')).toHaveTextContent(firstTitle ?? '');
+    fireEvent.click(screen.getByRole('button', { name: /^מקורי \(/ }));
+    expect(screen.getAllByRole('button', { name: /^הזזת דיווח:/ }).every((button) => button.hasAttribute('disabled'))).toBe(true);
+    expect(screen.getByText(/לשינוי סדר הדיווחים, בחרו/)).toBeInTheDocument();
+  });
+
+  it('opens report details, preserves zero versus unknown, and supports editing and removal', async () => {
+    renderBuilder();
+    await makeReports();
+    const detailsButton = screen.getAllByRole('button', { name: /^פרטים:/ })[0];
+    detailsButton.focus();
+    fireEvent.click(detailsButton);
+    let dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: 'מידע מרכזי' })).toBeInTheDocument();
+    expect(within(dialog).getByText('זמן התרחשות')).toBeInTheDocument();
+    expect(within(dialog).getByText('מקור מידע')).toBeInTheDocument();
+    expect(within(dialog).getByText('פצועים — כוחותינו').nextElementSibling).toHaveTextContent('לא ידוע');
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(detailsButton).toHaveFocus();
+    fireEvent.click(detailsButton);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'עריכה' }));
+    dialog = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    fireEvent.change(within(dialog).getByLabelText('פצועים — כוחותינו'), { target: { value: '0' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'שמירת שינויים' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^פרטים:/ })[0]);
+    dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('פצועים — כוחותינו').nextElementSibling).toHaveTextContent(/^0$/);
+    expect(within(dialog).getByText('הרוגים — אויב').nextElementSibling).toHaveTextContent('לא ידוע');
+    fireEvent.click(within(dialog).getByText(/פרטים נוספים/));
+    expect(within(dialog).getByText('גרסת סכמה')).toBeVisible();
+    expect(within(dialog).getByText('כתובת מקור')).toBeVisible();
+    const close = within(dialog).getByRole('button', { name: 'סגירה' });
+    close.focus();
+    fireEvent.keyDown(dialog, { key: 'Tab' });
+    expect(within(dialog).getByRole('button', { name: 'סגירת פרטי הדיווח' })).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+    expect(close).toHaveFocus();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'הסרה מהסימולציה' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /דיווחים בסימולציה 4/ })).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('restores header actions, saves a partial draft, and keeps final-step saving', async () => {
+    const view = renderBuilder();
+    expect(screen.getByRole('button', { name: 'שמירה כטיוטה' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'שמירה' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'סגירה' })).toBeEnabled();
+    expect(screen.getByText('טרם נשמר')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'שמירה' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('יש להוסיף לפחות דיווח אחד');
+    expect(loadAiSimulations()).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'שמירה כטיוטה' }));
+    await waitFor(() => expect(screen.getByText('נשמר מקומית')).toBeInTheDocument());
+    expect(loadAiSimulations()[0]).toMatchObject({ status: 'draft', step: 1, reports: [] });
+    await makeReports();
+    expect(screen.getByRole('button', { name: 'שמירה כטיוטה' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'המשך לשמירה' }));
+    expect(screen.getAllByRole('button', { name: 'שמירה כטיוטה' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'שמירת הסימולציה' })).toHaveLength(1);
+    fireEvent.click(screen.getAllByRole('button', { name: 'שמירה כטיוטה' })[1]);
     const saved = loadAiSimulations()[0];
     expect(saved.status).toBe('draft');
     expect(saved.simulation).toMatchObject({ difficulty: 'medium', length_s: 600 });
@@ -128,7 +225,7 @@ describe('AI simulation frontend flow', () => {
     expect(screen.getByRole('button', { name: 'החלפת הדיווחים' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'ביטול יצירה מחדש' }));
     expect(screen.queryByRole('button', { name: 'החלפת הדיווחים' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'שמירה כטיוטה' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'שמירה כטיוטה' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'יצירת הסימולציה מחדש' }));
     fireEvent.click(screen.getByRole('button', { name: 'החלפת הדיווחים' }));
     await screen.findByRole('heading', { name: /דיווחים בסימולציה 10/ });
@@ -153,8 +250,13 @@ describe('AI simulation frontend flow', () => {
     await screen.findByRole('heading', { name: /דיווחים בסימולציה 120/ });
     expect(screen.getAllByRole('button', { name: /^עריכת דיווח:/ })).toHaveLength(12);
     expect(screen.getByText('עמוד 1 מתוך 10')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'לעמוד הבא' }));
+    const boundaryCard = screen.getAllByRole('article')[11];
+    const boundaryTitle = within(boundaryCard).getByRole('heading').textContent;
+    fireEvent.click(within(boundaryCard).getByRole('button', { name: /^העברה למטה:/ }));
     expect(screen.getByText('עמוד 2 מתוך 10')).toBeInTheDocument();
+    expect(within(screen.getAllByRole('article')[0]).getByRole('heading')).toHaveTextContent(boundaryTitle ?? '');
+    fireEvent.click(within(screen.getAllByRole('article')[0]).getByRole('button', { name: /^העברה למעלה:/ }));
+    expect(screen.getByText('עמוד 1 מתוך 10')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'רעש רקע (30)' }));
     expect(screen.getByText('עמוד 1 מתוך 3')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'לעמוד הבא' }));
@@ -190,7 +292,7 @@ describe('AI simulation frontend flow', () => {
     await makeReports();
     fireEvent.click(screen.getByRole('button', { name: 'המשך לשמירה' }));
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage blocked'); });
-    fireEvent.click(screen.getByRole('button', { name: 'שמירה כטיוטה' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'שמירה כטיוטה' })[0]);
     expect(screen.getByRole('alert')).toHaveTextContent('השמירה המקומית נכשלה');
     expect(screen.queryByText('טיוטה מקומית')).not.toBeInTheDocument();
     expect(localStorage.getItem(AI_SIMULATIONS_KEY)).toBeNull();

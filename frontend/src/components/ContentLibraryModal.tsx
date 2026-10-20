@@ -1,84 +1,48 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { CategoryNode, LibraryTemplate } from '../lib/libraryApi';
-import { getCategoryTree, getTemplates } from '../lib/libraryApi';
+import type { CategoryNode } from '../lib/libraryApi';
+import { getUrgency } from '../lib/urgency';
 import type { EventCategory, SimulationEvent } from '../types/simulation';
-import { CheckIcon, CloseIcon, PlusIcon, SearchIcon } from './Icons';
+import { CloseIcon, PlusIcon, SearchIcon } from './Icons';
 
 interface ContentLibraryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  categories: CategoryNode[];
+  availableEvents: SimulationEvent[];
   selectedIds: Set<string>;
   onToggle: (event: SimulationEvent) => void;
   onAddCustom: (event: SimulationEvent) => void;
-  loadLibrary?: () => Promise<{ categories: CategoryNode[]; templates: LibraryTemplate[] }>;
-  onToggleTemplate?: (template: LibraryTemplate, minute: number) => void;
   allowCustom?: boolean;
   maxMinute?: number;
-}
-
-function toSimulationEvent(template: LibraryTemplate, minute: number): SimulationEvent {
-  return {
-    id: `library-${template.id}`,
-    title: template.report_title || 'דיווח ללא כותרת',
-    category: template.category_name || 'ללא קטגוריה',
-    categoryId: template.category_id,
-    subCategory: template.sub_category_name ?? undefined,
-    subCategoryId: template.sub_category_id,
-    reportUrl: template.report_url,
-    minute,
-    description: template.original_content,
-  };
+  isLoading: boolean;
+  error: string;
+  totalCount: number;
 }
 
 export default function ContentLibraryModal({
   isOpen,
   onClose,
+  categories,
+  availableEvents,
   selectedIds,
   onToggle,
   onAddCustom,
-  loadLibrary,
-  onToggleTemplate,
   allowCustom = true,
-  maxMinute = 180,
+  maxMinute,
+  isLoading,
+  error,
+  totalCount,
 }: ContentLibraryModalProps) {
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
-  const [templates, setTemplates] = useState<LibraryTemplate[]>([]);
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null);
-  const [minutes, setMinutes] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
   const [customCategory, setCustomCategory] = useState<EventCategory>('מבצעי');
   const [customMinute, setCustomMinute] = useState<number>(10);
   const [customDescription, setCustomDescription] = useState('');
   const [customError, setCustomError] = useState('');
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let active = true;
-    setLoading(true);
-    setError('');
-    const load = loadLibrary
-      ? loadLibrary()
-      : Promise.all([getCategoryTree(), getTemplates({})]).then(([tree, reports]) => ({ categories: tree, templates: reports }));
-    load.then(({ categories: tree, templates: reports }) => {
-        if (!active) return;
-        setCategories(tree);
-        setTemplates(reports);
-      })
-      .catch((loadError: unknown) => {
-        if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'טעינת ספריית התוכן נכשלה');
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, [isOpen, loadLibrary]);
+  const [minutes, setMinutes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -93,23 +57,20 @@ export default function ContentLibraryModal({
     };
   }, [isOpen, onClose]);
 
-  const filteredTemplates = useMemo(() => {
+  const filteredEvents = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return templates.filter((template) => {
-      if (categoryId && template.category_id !== categoryId) return false;
-      if (subCategoryId && template.sub_category_id !== subCategoryId) return false;
+    return availableEvents.filter((event) => {
+      if (categoryId && event.categoryId !== categoryId) return false;
+      if (subCategoryId && event.subCategoryId !== subCategoryId) return false;
       if (!query) return true;
       return [
-        template.report_title,
-        template.original_content,
-        template.translated_content,
-        template.category_name,
-        template.sub_category_name,
-        template.city,
-        template.country,
+        event.title,
+        event.description,
+        event.categoryName,
+        event.subCategory,
       ].some((value) => value?.toLocaleLowerCase().includes(query));
     });
-  }, [templates, search, categoryId, subCategoryId]);
+  }, [availableEvents, search, categoryId, subCategoryId]);
 
   if (!isOpen) return null;
 
@@ -145,7 +106,11 @@ export default function ContentLibraryModal({
         <div className="library-modal-header">
           <div className="library-modal-header-text">
             <h2>ספריית התוכן</h2>
-            <p>בחרו דיווח מהקטגוריות והתיקיות בספריית התוכן</p>
+            <p>
+              {typeof totalCount === 'number'
+                ? `${totalCount} דיווחים מהמאגר (${filteredEvents.length} מוצגים)`
+                : 'בחרו דיווח מהקטגוריות והתיקיות בספריית התוכן'}
+            </p>
           </div>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="סגור חלון">
             <CloseIcon size={16} />
@@ -172,7 +137,7 @@ export default function ContentLibraryModal({
               onClick={() => handleSelectCategory(null)}
             >
               <span>כל הדיווחים</span>
-              <span className="tree-count">{templates.length}</span>
+              <span className="tree-count">{availableEvents.length}</span>
             </button>
             {categories.map((category) => (
               <div className="library-category-branch" key={category.id}>
@@ -208,59 +173,87 @@ export default function ContentLibraryModal({
                 ? selectedCategory?.sub_categories.find((subcategory) => subcategory.id === subCategoryId)?.name
                 : selectedCategory?.name ?? 'דיווחים'}
               </strong>
-              <span>{filteredTemplates.length} דיווחים</span>
+              <span>{filteredEvents.length} דיווחים</span>
             </div>
-            {loading ? (
+            {isLoading ? (
               <div className="empty-selected-box"><p>טוען דיווחים וקטגוריות...</p></div>
             ) : error ? (
               <div className="empty-selected-box" role="alert"><p>טעינת ספריית התוכן נכשלה: {error}</p></div>
-            ) : filteredTemplates.length === 0 ? (
+            ) : filteredEvents.length === 0 ? (
               <div className="empty-selected-box"><p>לא נמצאו דיווחים בקטגוריה או בחיפוש הזה</p></div>
             ) : (
-              filteredTemplates.map((template) => {
-                const eventId = `library-${template.id}`;
-                const selected = selectedIds.has(eventId);
-                const minuteValue = minutes[template.id] ?? '1';
-                const minute = Number(minuteValue);
-                const validMinute = Number.isInteger(minute) && minute >= 1 && minute <= maxMinute;
-                const simulationEvent = toSimulationEvent(template, minute);
+              filteredEvents.map((libraryEvent) => {
+                const selected = selectedIds.has(libraryEvent.id);
+                const minuteValue = minutes[libraryEvent.id] ?? String(libraryEvent.minute);
+                const minute = maxMinute === undefined ? libraryEvent.minute : Number(minuteValue);
+                const validMinute = maxMinute === undefined || (Number.isInteger(minute) && minute >= 1 && minute <= maxMinute);
+                const simulationEvent = { ...libraryEvent, minute };
+                const categoryLabel = [libraryEvent.categoryName, libraryEvent.subCategory]
+                  .filter(Boolean)
+                  .join(' · ') || libraryEvent.category;
+                const urgency = getUrgency(libraryEvent.threatLevel);
                 return (
-                  <article key={template.id} className={`catalog-event-box ${selected ? 'is-added' : ''}`}>
-                    <div className="box-top-line">
-                      <h4 className="box-title">{template.report_title || 'דיווח ללא כותרת'}</h4>
-                      <div className="box-tags">
-                        <span className="library-report-category">
-                          {[template.category_name, template.sub_category_name].filter(Boolean).join(' · ') || 'ללא קטגוריה'}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="box-desc">{template.original_content}</p>
-                    <div className="library-report-meta">
-                      <span>{[template.city, template.country].filter(Boolean).join(' · ') || 'מיקום לא דווח'}</span>
-                      <span>{new Date(template.happened_at ?? template.collected_at).toLocaleDateString('he-IL')}</span>
-                    </div>
-                    <div className="library-report-actions">
-                      <label>
-                        דקה בסימולציה
+                  <article
+                    key={libraryEvent.id}
+                    className={`catalog-event-box library-report-card ${selected ? 'is-added' : ''}`}
+                    onClick={() => { if (validMinute) onToggle(simulationEvent); }}
+                  >
+                    <div className="library-report-meta-top">
+                      <label
+                        className="library-report-select"
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         <input
-                          type="number"
-                          min="1"
-                          max={maxMinute}
-                          aria-label={`דקה בסימולציה: ${template.report_title || 'דיווח ללא כותרת'}`}
-                          value={minuteValue}
-                          onChange={(event) => setMinutes({ ...minutes, [template.id]: event.target.value })}
+                          type="checkbox"
+                          checked={selected}
+                          disabled={!validMinute}
+                          aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${libraryEvent.title || 'דיווח ללא כותרת'}`}
+                          onChange={() => onToggle(simulationEvent)}
                         />
                       </label>
-                      <button
-                        type="button"
-                        className={`btn-add-event ${selected ? 'added' : ''}`}
-                        disabled={!validMinute}
-                        aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${template.report_title || 'דיווח ללא כותרת'}`}
-                        onClick={() => onToggleTemplate ? onToggleTemplate(template, minute) : onToggle(simulationEvent)}
-                      >
-                        {selected ? <><CheckIcon size={14} /><span>נבחר לסימולציה</span></> : <><PlusIcon size={14} /><span>הוסף לסימולציה</span></>}
-                      </button>
+                      <span className="library-report-original">מקורי</span>
+                      <span className="library-report-category">{categoryLabel}</span>
                     </div>
+                    <h4 className="box-title library-report-card-title">{libraryEvent.title || 'דיווח ללא כותרת'}</h4>
+                    <p className="box-desc">{libraryEvent.description}</p>
+                    <div className="library-report-card-footer">
+                      <span className="library-report-area">
+                        <span aria-hidden="true">⌖</span>
+                        {[libraryEvent.city, libraryEvent.country].filter(Boolean).join(' · ') || 'אזור לא דווח'}
+                      </span>
+                      <span className={`library-report-urgency ${urgency.level}`}>
+                        דחיפות: {urgency.label}
+                      </span>
+                      {maxMinute === undefined && (
+                        <span className="library-report-minute">
+                          דקה בסימולציה: {libraryEvent.minute}
+                        </span>
+                      )}
+                    </div>
+                    {maxMinute !== undefined && (
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <label className="library-report-minute">
+                          דקה בסימולציה:
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxMinute}
+                            aria-label={`דקה בסימולציה: ${libraryEvent.title}`}
+                            value={minuteValue}
+                            onChange={(event) => setMinutes({ ...minutes, [libraryEvent.id]: event.target.value })}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className={`btn-add-event ${selected ? 'added' : ''}`}
+                          disabled={!validMinute}
+                          aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${libraryEvent.title}`}
+                          onClick={() => onToggle(simulationEvent)}
+                        >
+                          {selected ? 'נבחר לסימולציה' : 'הוסף לסימולציה'}
+                        </button>
+                      </div>
+                    )}
                   </article>
                 );
               })
