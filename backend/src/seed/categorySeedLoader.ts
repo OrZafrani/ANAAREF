@@ -21,6 +21,13 @@ import { db } from '../db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = join(__dirname, 'reports_library_seed.csv');
+const SEED_CATEGORIES = [
+  'פח"ע',
+  'חירום אזרחי ורפואי',
+  'הפרות סדר ואלימות המונית',
+  'תלול-מסלול, ירי רקטי ואוויר',
+  'לירן המלך',
+];
 
 /**
  * Parse a casualty-count cell.
@@ -155,7 +162,7 @@ async function readCsvRows(): Promise<CsvRow[]> {
           skip_empty_lines: true,
           trim: false,          // we handle trimming ourselves per field
           relax_column_count: true,
-          quote: null,          // seed content contains literal `"` chars inside Hebrew fields
+          quote: "'",           // single-quote wrapper supports commas in category names; `"` remains literal content
         }),
       )
       .on('data', (row: CsvRow) => rows.push(row))
@@ -223,9 +230,21 @@ export async function runSeedLibrary(): Promise<{ rowCount: number }> {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
+    for (const category of SEED_CATEGORIES) {
+      await client.query(UPSERT_CATEGORY, [category]);
+    }
     for (const row of rows) {
       await upsertRow(client, row);
     }
+    // Remove obsolete, unused seed categories while preserving categories that still own reports.
+    await client.query(
+      `DELETE FROM template_categories c
+       WHERE NOT (c.name = ANY($1::text[]))
+         AND NOT EXISTS (
+           SELECT 1 FROM report_templates r WHERE r.category_id = c.id
+         )`,
+      [SEED_CATEGORIES],
+    );
     await client.query('COMMIT');
     console.log(`[seed] Seeded ${rows.length} report templates successfully.`);
     return { rowCount: rows.length };

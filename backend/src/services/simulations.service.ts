@@ -29,7 +29,6 @@ const DIFFICULTY_SETTINGS = {
   קל: { databaseValue: 'easy', lengthSeconds: 20 * 60 },
   בינוני: { databaseValue: 'medium', lengthSeconds: 30 * 60 },
   קשה: { databaseValue: 'hard', lengthSeconds: 45 * 60 },
-  מומחה: { databaseValue: 'expert', lengthSeconds: 60 * 60 },
 } as const;
 
 const SIMULATION_SELECT = `
@@ -40,7 +39,6 @@ const SIMULATION_SELECT = `
            WHEN 'easy' THEN 'קל'
            WHEN 'medium' THEN 'בינוני'
            WHEN 'hard' THEN 'קשה'
-           WHEN 'expert' THEN 'מומחה'
            ELSE s.difficulty::text
          END AS difficulty,
          s.ai_generated AS "aiGenerated",

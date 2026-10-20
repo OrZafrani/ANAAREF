@@ -1,21 +1,50 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewSimulationModal from '../components/NewSimulationModal';
 import { deleteSimulation, listSimulations } from '../lib/api';
 import SimulationDrawer, { DifficultyBadge, formatWhen } from '../components/SimulationDrawer';
+import ConfirmDialog from '../components/ConfirmDialog';
 import type { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
-import { PencilIcon, PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
+import { getRunningSimulation, getSimulationRuns, startRun, stopRun, SimulationRun } from '../lib/runsApi';
+import { formatRelativeRunTime, runBlockReason, runDuration, runErrorMessage, runStatusLabel } from '../lib/runFormat';
+import { ChevronDownIcon, PencilIcon, PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
 
+// Refresh runs often while one is active, so progress stays current.
+const ACTIVE_POLL_MS = 2_000;
+const IDLE_POLL_MS = 10_000;
 function hasDraft() {
   try {
     return Boolean(sessionStorage.getItem('cobra_sim_draft'));
   } catch {
     return false;
   }
+}
+
+function plannedDuration(seconds: number) {
+  const totalMinutes = Math.floor(Math.max(0, seconds) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours} שע׳ ${minutes} דק׳`;
+  if (totalMinutes > 0) return `${totalMinutes} דק׳`;
+  return `${Math.max(0, seconds)} שנ׳`;
+}
+
+function runTargetLabel(target: SimulationRun['target_system']) {
+  return target === 'specter' ? SYSTEM_INFO.spectre.name : SYSTEM_INFO.cm.name;
+}
+
+function formatRunStart(iso: string) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('he-IL');
+}
+
+function estimatedEnd(run: SimulationRun) {
+  const startedAt = new Date(run.started_at).getTime();
+  return Number.isNaN(startedAt) ? null : new Date(startedAt + run.simulation_length_s * 1000).toISOString();
 }
 
 export default function Home() {
@@ -32,6 +61,21 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'all'>('all');
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
+  const [recentRuns, setRecentRuns] = useState<SimulationRun[]>([]);
+  const [showAllDayRuns, setShowAllDayRuns] = useState(false);
+  const [activeRun, setActiveRun] = useState<SimulationRun | null>(null);
+  const [runsLoading, setRunsLoading] = useState(true);
+  const [runsError, setRunsError] = useState(false);
+  // Why a clicked simulation can't run, shown on its card (and in its drawer).
+  const [runActionError, setRunActionError] = useState<{ simulationId: string; message: string } | null>(null);
+  // The run or stop waiting for confirmation, and the error of its request, if any.
+  const [confirming, setConfirming] = useState<
+    { kind: 'start'; simulation: Simulation } | { kind: 'stop'; run: SimulationRun } | null
+  >(null);
+  const [confirmError, setConfirmError] = useState('');
+  // 'start:<simulationId>' or 'stop' while that request is in flight.
+  const [pendingRunAction, setPendingRunAction] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const draftOpen = hasDraft();
 
   useEffect(() => {
@@ -64,6 +108,42 @@ export default function Home() {
     return () => { active = false; };
   }, []);
 
+  const refreshRuns = useCallback(async () => {
+    const [runsResult, activeResult] = await Promise.allSettled([
+      getSimulationRuns(),
+      getRunningSimulation(),
+    ]);
+    if (runsResult.status === 'fulfilled') {
+      setRecentRuns(runsResult.value);
+      setRunsError(false);
+    } else {
+      setRunsError(true);
+    }
+    if (activeResult.status === 'fulfilled') setActiveRun(activeResult.value);
+    setRunsLoading(false);
+    setNow(Date.now());
+  }, []);
+
+  const isRunActive = activeRun !== null;
+  useEffect(() => {
+    void refreshRuns();
+    const interval = window.setInterval(() => void refreshRuns(), isRunActive ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+    return () => window.clearInterval(interval);
+  }, [refreshRuns, isRunActive]);
+
+  const runsFromLastDay = useMemo(() => {
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    return recentRuns.filter((run) => {
+      const startedAt = new Date(run.started_at).getTime();
+      return !Number.isNaN(startedAt) && startedAt >= oneDayAgo && startedAt <= now;
+    });
+  }, [recentRuns, now]);
+  const latestFiveRuns = recentRuns.slice(0, 5);
+  const visibleRuns = showAllDayRuns ? runsFromLastDay : latestFiveRuns;
+  const hasDifferentRunViews = runsFromLastDay.length > 5
+    || latestFiveRuns.some((run) => !runsFromLastDay.some((dayRun) => dayRun.id === run.id));
+
+  // Simulations saved before the system switch existed have no sys and belong to SPECTRE.
   const simulations = useMemo(
     () => allSimulations.filter((sim) => (sim.sys ?? 'spectre') === sys),
     [allSimulations, sys],
@@ -109,6 +189,46 @@ export default function Home() {
     if (simulation) setSimulationToDelete(simulation);
   };
 
+  /** Run button: explains on the card why it can't run, or asks for confirmation. */
+  const handleStartRun = (simulation: Simulation) => {
+    if (pendingRunAction !== null) return;
+    const blocked = runBlockReason(simulation, activeRun);
+    if (blocked) {
+      setRunActionError({ simulationId: simulation.id, message: blocked });
+      return;
+    }
+    setRunActionError(null);
+    setConfirmError('');
+    setConfirming({ kind: 'start', simulation });
+  };
+
+  const handleStopRun = (run: SimulationRun) => {
+    if (pendingRunAction !== null) return;
+    setConfirmError('');
+    setConfirming({ kind: 'stop', run });
+  };
+
+  const closeConfirm = useCallback(() => setConfirming(null), []);
+
+  /** Sends the confirmed start or stop. On failure the dialog stays open with the reason. */
+  const handleConfirm = async () => {
+    if (!confirming) return;
+    const action = confirming.kind;
+    setConfirmError('');
+    setPendingRunAction(action === 'start' ? `start:${confirming.simulation.id}` : 'stop');
+    try {
+      if (action === 'start') await startRun(confirming.simulation.id);
+      else await stopRun(confirming.run.simulation_id, confirming.run.id);
+      setConfirming(null);
+    } catch (runError) {
+      setConfirmError(runErrorMessage(runError, action));
+    } finally {
+      // Also after a failure: a 409 means another run started, or this one ended, meanwhile.
+      await refreshRuns();
+      setPendingRunAction(null);
+    }
+  };
+
   const clearFilters = () => {
     setSearch('');
     setDifficulty('all');
@@ -130,10 +250,44 @@ export default function Home() {
 
       <section className="dash-sec" aria-labelledby="active-title">
         <h2 className="dash-sec-title" id="active-title">סימולציה פעילה</h2>
-        <div className="card active-empty">
-          <PlayCircleIcon size={18} />
-          <span>אין סימולציה פעילה ב-{sysInfo.name}. הרצת סימולציות עדיין לא זמינה במערכת.</span>
-        </div>
+        {activeRun ? (
+          <div className="card active-run-card">
+            <div className="active-run-head">
+              <PlayCircleIcon size={18} />
+              <span><strong>{activeRun.simulation_name}</strong> · {runTargetLabel(activeRun.target_system)} · התחילה {formatRunStart(activeRun.started_at)}</span>
+              <span className="run-status status-started">פעילה · {runDuration(activeRun, now)}</span>
+              <button
+                type="button"
+                className="btn btn-danger-ghost btn-sm active-run-stop"
+                onClick={() => handleStopRun(activeRun)}
+                disabled={pendingRunAction !== null}
+              >
+                {pendingRunAction === 'stop' ? 'עוצר…' : 'עצירת הריצה'}
+              </button>
+            </div>
+            <div className="active-run-progress">
+              <div
+                className="run-progress"
+                role="progressbar"
+                aria-label="התקדמות הריצה"
+                aria-valuemin={0}
+                aria-valuemax={activeRun.report_count}
+                aria-valuenow={activeRun.dispatched_count}
+              >
+                <span style={{ width: `${activeRun.report_count > 0 ? Math.min(100, (activeRun.dispatched_count / activeRun.report_count) * 100) : 0}%` }} />
+              </div>
+              <span className="run-progress-label">
+                נשלחו <span className="mono">{activeRun.dispatched_count}</span> מתוך <span className="mono">{activeRun.report_count}</span> דיווחים
+                · משך מתוכנן {plannedDuration(activeRun.simulation_length_s)}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="card active-empty">
+            <PlayCircleIcon size={18} />
+            <span>{runsLoading ? 'בודק אם יש סימולציה פעילה…' : `אין סימולציה פעילה כרגע. ניתן להריץ סימולציה אחת בכל פעם.`}</span>
+          </div>
+        )}
       </section>
 
       <section className="dash-sec" aria-labelledby="saved-title">
@@ -205,13 +359,17 @@ export default function Home() {
             {visible.map((sim) => {
               const preset = DIFFICULTY_PRESETS[sim.difficulty];
               const categories = Array.from(new Set(sim.events.map((event) => event.category))).slice(0, 3);
+              const isRunning = activeRun?.simulation_id === sim.id;
+              const blockReason = runBlockReason(sim, activeRun);
               return (
                 <article key={sim.id} className="card sim-card">
                   <span className="badge b-var sim-creation-badge">
                     {sim.aiGenerated ? 'נוצרה בAI' : 'נוצרה ידנית'}
                   </span>
                   <div className="chips">
-                    <span className="badge b-ok">שמורה</span>
+                    {isRunning
+                      ? <span className="badge run-status status-started">רצה כעת</span>
+                      : <span className="badge b-ok">שמורה</span>}
                     <DifficultyBadge difficulty={sim.difficulty} />
                   </div>
                   <h3 className="sc-title">
@@ -243,6 +401,18 @@ export default function Home() {
                       </button>
                       <button
                         type="button"
+                        className="btn btn-run btn-sm run-sim-btn"
+                        onClick={() => handleStartRun(sim)}
+                        // aria-disabled, not disabled: a click on a blocked button explains why.
+                        aria-disabled={blockReason !== null || pendingRunAction !== null}
+                        aria-label={`הרצת הסימולציה ${sim.title}`}
+                        title={blockReason ?? 'הרצת הסימולציה'}
+                      >
+                        <PlayCircleIcon size={16} />
+                        <span>{pendingRunAction === `start:${sim.id}` ? 'מפעיל…' : 'הרצה'}</span>
+                      </button>
+                      <button
+                        type="button"
                         className="icon-btn delete-sim-btn"
                         onClick={() => requestDeleteSimulation(sim.id)}
                         aria-label={`מחיקת הסימולציה ${sim.title}`}
@@ -252,6 +422,9 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
+                  {runActionError?.simulationId === sim.id && (
+                    <p className="sc-run-error" role="alert">{runActionError.message}</p>
+                  )}
                 </article>
               );
             })}
@@ -275,17 +448,58 @@ export default function Home() {
       <section className="dash-sec" aria-labelledby="runs-title">
         <h2 className="dash-sec-title" id="runs-title">
           ריצות אחרונות
-          <span className="sec-count mono">0</span>
+          <span className="sec-count mono">{visibleRuns.length}</span>
         </h2>
         <div className="card runs">
-          <div className="run-row run-head" aria-hidden="true">
-            <span>סימולציה</span>
-            <span>מערכת יעד</span>
-            <span>זמן שליחה</span>
-            <span>משך</span>
-            <span>סטטוס</span>
+          <div id="recent-runs-list">
+            <div className="run-row run-head" aria-hidden="true">
+              <span>סימולציה</span>
+              <span>מערכת יעד</span>
+              <span>זמן שליחה</span>
+              <span>משך</span>
+              <span>סטטוס משוער</span>
+            </div>
+            {runsLoading ? (
+              <p className="runs-empty">טוען ריצות אחרונות…</p>
+            ) : runsError ? (
+              <p className="runs-empty" role="status">לא ניתן לטעון את הריצות האחרונות כרגע.</p>
+            ) : visibleRuns.length === 0 ? (
+              <p className="runs-empty">{showAllDayRuns ? 'לא היו ריצות ב־24 השעות האחרונות.' : 'עדיין לא הורצו סימולציות.'}</p>
+            ) : visibleRuns.map((run) => (
+              <div className="run-row" key={run.id}>
+                <span className="run-name" title={run.simulation_name}>{run.simulation_name}</span>
+                <span>{runTargetLabel(run.target_system)}</span>
+                <time dateTime={run.started_at}>{formatRelativeRunTime(run.started_at, now)}</time>
+                <span>{plannedDuration(run.simulation_length_s)}</span>
+                <div className="run-status-cell">
+                  <span className={`run-status status-${run.status}`}>{runStatusLabel(run.status)}</span>
+                  {/* The estimate only describes a run that is still going. */}
+                  {run.status === 'started' && <>
+                    <span className="run-estimate">{estimatedEnd(run) && now >= new Date(estimatedEnd(run)!).getTime() ? 'משך הריצה חלף' : 'הריצה בעיצומה'}</span>
+                    {estimatedEnd(run) && <span className="run-estimate-end">סיום משוער: {formatRelativeRunTime(estimatedEnd(run)!, now)}</span>}
+                  </>}
+                  {run.status !== 'started' && (
+                    <span className="run-estimate">נשלחו {run.dispatched_count} מתוך {run.report_count}</span>
+                  )}
+                  {run.status === 'failed' && run.failure_reason && (
+                    <span className="run-estimate-end" title={run.failure_reason}>{run.failure_reason}</span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="runs-empty">עדיין לא הורצו סימולציות.</p>
+          {!runsLoading && !runsError && hasDifferentRunViews && (
+            <button
+              type="button"
+              className="run-expand-toggle"
+              aria-expanded={showAllDayRuns}
+              aria-controls="recent-runs-list"
+              onClick={() => setShowAllDayRuns((expanded) => !expanded)}
+            >
+              <span>{showAllDayRuns ? 'הצג את 5 הריצות האחרונות' : `הצג את כל ${runsFromLastDay.length} הריצות מ־24 השעות האחרונות`}</span>
+              <ChevronDownIcon className={showAllDayRuns ? 'is-expanded' : ''} size={17} />
+            </button>
+          )}
         </div>
       </section>
 
@@ -345,8 +559,70 @@ export default function Home() {
           simulation={openSimulation}
           onClose={() => setOpenId(null)}
           onDelete={requestDeleteSimulation}
+          runs={recentRuns.filter((run) => run.simulation_id === openSimulation.id)}
+          activeRun={activeRun}
+          now={now}
+          runBlockReason={runBlockReason(openSimulation, activeRun)}
+          pendingRunAction={pendingRunAction}
+          runActionError={runActionError?.simulationId === openSimulation.id ? runActionError.message : ''}
+          onRun={() => handleStartRun(openSimulation)}
+          onStop={handleStopRun}
         />
       )}
+
+      {confirming?.kind === 'start' && (() => {
+        const sim = confirming.simulation;
+        const target = SYSTEM_INFO[sim.sys ?? 'spectre'];
+        const durationMin = DIFFICULTY_PRESETS[sim.difficulty]?.durationMin;
+        return (
+          <ConfirmDialog
+            eyebrow="הרצת סימולציה"
+            title={`להריץ את „${sim.title}"?`}
+            rows={[
+              { label: 'מערכת יעד', value: <span className="badge b-sys">{target.name}</span> },
+              { label: 'תוכן', value: <><span className="mono">{sim.events.length}</span> {target.unitItems}</> },
+              { label: 'משך ורמה', value: <>{durationMin != null ? <><span className="mono">{durationMin}</span> דק׳ · </> : null}רמה {sim.difficulty}</> },
+            ]}
+            confirmLabel="אישור והרצה"
+            confirmIcon={<PlayCircleIcon size={16} />}
+            variant="run"
+            busy={pendingRunAction !== null}
+            busyLabel="מפעיל…"
+            error={confirmError}
+            onConfirm={handleConfirm}
+            onCancel={closeConfirm}
+          >
+            הסימולציה תישלח מיד ל-{target.name}
+            {durationMin != null ? `, וצפויה להסתיים בעוד ${durationMin} דק׳ מרגע השליחה` : ''}.
+            {' '}עד לסיום המשוער לא ניתן יהיה להריץ סימולציה נוספת.
+          </ConfirmDialog>
+        );
+      })()}
+
+      {confirming?.kind === 'stop' && (() => {
+        // Prefer the latest poll, so the progress shown is current.
+        const run = activeRun?.id === confirming.run.id ? activeRun : confirming.run;
+        return (
+          <ConfirmDialog
+            eyebrow="עצירת ריצה"
+            title={`לעצור את „${run.simulation_name}"?`}
+            rows={[
+              { label: 'מערכת יעד', value: <span className="badge b-sys">{runTargetLabel(run.target_system)}</span> },
+              { label: 'התקדמות', value: <>נשלחו <span className="mono">{run.dispatched_count}</span> מתוך <span className="mono">{run.report_count}</span></> },
+              { label: 'זמן ריצה', value: runDuration(run, now) },
+            ]}
+            confirmLabel="עצירת הריצה"
+            variant="danger"
+            busy={pendingRunAction !== null}
+            busyLabel="עוצר…"
+            error={confirmError}
+            onConfirm={handleConfirm}
+            onCancel={closeConfirm}
+          >
+            דיווחים שכבר נשלחו לא יבוטלו. הריצה תסומן כ״נעצרה״ ולא ניתן יהיה להמשיך אותה.
+          </ConfirmDialog>
+        );
+      })()}
     </div>
   );
 }

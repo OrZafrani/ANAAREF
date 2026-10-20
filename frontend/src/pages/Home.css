@@ -371,10 +371,10 @@
 
 .run-row {
   display: grid;
-  grid-template-columns: minmax(180px, 2.2fr) minmax(110px, 1fr) minmax(120px, 1.1fr) minmax(110px, 1fr) minmax(100px, .9fr);
+  grid-template-columns: minmax(180px, 2.2fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(90px, .7fr) minmax(200px, 1.5fr);
   gap: 16px;
   align-items: center;
-  min-width: 680px;
+  min-width: 780px;
   padding: 10px 20px;
   font-size: 14px;
 }
@@ -389,6 +389,140 @@
   font-weight: 600;
   letter-spacing: .02em;
   color: var(--muted);
+}
+
+.run-row:not(.run-head) {
+  min-height: 54px;
+  border-top: 1px solid var(--line);
+}
+
+.run-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.run-status {
+  justify-self: start;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.run-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.run-estimate,
+.run-estimate-end {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.run-estimate { color: var(--ink-2); font-weight: 500; }
+.run-estimate-end { color: var(--muted); }
+
+.run-expand-toggle {
+  display: flex;
+  width: 100%;
+  min-width: 780px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--sys-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.run-expand-toggle:hover { background: var(--surface-2); }
+.run-expand-toggle:focus-visible { outline: 2px solid var(--sys-strong); outline-offset: -2px; }
+.run-expand-toggle svg { transition: transform .18s ease; }
+.run-expand-toggle svg.is-expanded { transform: rotate(180deg); }
+
+.status-started { background: var(--warn-soft); color: var(--warn); }
+.status-completed { background: var(--ok-soft); color: var(--ok); }
+.status-stopped { background: var(--surface-2); color: var(--ink-2); }
+.status-failed { background: var(--danger-soft); color: var(--danger); }
+
+.active-run-card strong { color: var(--ink); }
+
+/* Active run: summary row, then progress */
+.active-run-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.active-run-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.active-run-stop { margin-inline-start: auto; }
+
+.active-run-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.run-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.run-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--run);
+  transition: width .4s ease;
+}
+
+.run-progress-label { font-size: 13px; }
+
+.run-error {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--r-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.sc-run-error {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* Blocked run buttons stay clickable (the click explains why), so dim them instead of disabling. */
+.run-sim-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .run-progress > span { transition: none; }
 }
 
 .runs-empty {

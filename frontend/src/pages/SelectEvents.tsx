@@ -23,7 +23,6 @@ const DIFFICULTY_DURATION_MAP: Record<string, number> = {
   קל: 20,
   בינוני: 30,
   קשה: 45,
-  מומחה: 60,
 };
 
 function simDurationCap(difficulty: string): number {

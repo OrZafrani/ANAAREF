@@ -1,4 +1,4 @@
-export type DifficultyLevel = 'קל' | 'בינוני' | 'קשה' | 'מומחה';
+export type DifficultyLevel = 'קל' | 'בינוני' | 'קשה';
 
 export type EventCategory = string;
 

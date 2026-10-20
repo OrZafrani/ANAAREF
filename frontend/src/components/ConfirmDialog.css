@@ -1,0 +1,41 @@
+/* Confirmation dialog: builds on the shared .modal-* styles in NewSimulationModal.css */
+.confirm-dialog { width: min(520px, 100%); }
+
+.confirm-summary {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+
+.confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.confirm-row dt { font-size: 14px; color: var(--muted); }
+.confirm-row dd { margin: 0; font-size: 15px; color: var(--ink); text-align: end; }
+
+.confirm-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.confirm-error {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--r-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 14px;
+}
