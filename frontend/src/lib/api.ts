@@ -1,4 +1,5 @@
 import { DifficultyLevel, Simulation, SimulationEvent } from '../types/simulation';
+import type { AiSimulationReport, GenerationResponse, GenerationSettings } from '../types/aiSimulation';
 
 export const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
 
@@ -38,8 +39,18 @@ interface CreatedSimulation {
   createdAt: string;
 }
 
+export interface CreateAiSimulationInput {
+  title: string;
+  description: string;
+  difficulty: DifficultyLevel;
+  sys: 'spectre';
+  ai_generated: true;
+  length_s: number;
+  reports: AiSimulationReport[];
+}
+
 export async function createSimulation(
-  input: CreateSimulationInput,
+  input: CreateSimulationInput | CreateAiSimulationInput,
 ): Promise<CreatedSimulation> {
   return requestJson('/api/simulations', {
     method: 'POST',
@@ -58,4 +69,17 @@ export async function getSimulation(id: string): Promise<Simulation> {
 
 export async function deleteSimulation(id: string): Promise<void> {
   await requestJson(`/api/simulations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function startAiGeneration(input: {
+  description: string; region: string; country: string; area: GenerationSettings['area'];
+  length_s: number; report_count: number; noise_level: GenerationSettings['noise_level'];
+}, signal?: AbortSignal): Promise<{ runId: string; status: 'queued' | 'running' }> {
+  return requestJson('/api/ai/generations', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal,
+  });
+}
+
+export function getAiGeneration(runId: string, signal?: AbortSignal): Promise<GenerationResponse> {
+  return requestJson(`/api/ai/generations/${encodeURIComponent(runId)}`, { signal });
 }

@@ -1,0 +1,20 @@
+.ai-saved { margin-top: 32px; color: #18232e; }
+.ai-saved h3 { display: flex; align-items: center; gap: 8px; }
+.ai-saved > p { color: #606c7b; font-size: .85rem; }
+.ai-saved-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 18px; }
+.ai-saved-card { border: 1px solid #dfe3e8; border-radius: 10px; padding: 20px; background: #fff; min-width: 0; }
+.ai-saved-card h4 { margin: 15px 0 8px; overflow-wrap: anywhere; }
+.ai-saved-card p { font-size: .86rem; color: #606c7b; overflow-wrap: anywhere; }
+.ai-saved-card small { color: #606c7b; }
+.ai-saved-badges { display: flex; flex-wrap: wrap; gap: 7px; }
+.ai-saved-badges span { border: 1px solid #e6d6a7; border-radius: 5px; background: #fffaec; color: #785419; font-size: .72rem; padding: 3px 7px; }
+.ai-saved-card footer { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; }
+.ai-saved a { color: #91600b; font-size: .9rem; font-weight: 600; }
+.ai-saved button { display: inline-flex; align-items: center; padding: 8px; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; color: #97353b; cursor: pointer; margin-inline-start: 8px; }
+.ai-saved .ai-saved-error { color: #a32e37; background: #fff0f0; border: 1px solid #e6b2b2; border-radius: 7px; padding: 12px; }
+.ai-saved-confirm { margin-top: 12px; padding: 12px; border: 1px solid #e6b2b2; border-radius: 7px; }
+.layout[data-theme='dark'] .ai-saved { color: #e8edf3; }
+.layout[data-theme='dark'] .ai-saved-card { background: #191f27; border-color: #354052; }
+.layout[data-theme='dark'] .ai-saved p,
+.layout[data-theme='dark'] .ai-saved small { color: #a7b2c2; }
+.layout[data-theme='dark'] .ai-saved a { color: #f1be55; }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
+import SimulationSavedModal from '../components/SimulationSavedModal';
 import { SimulationFormData, SimulationEvent } from '../types/simulation';
 import { createSimulation } from '../lib/api';
 import { getCategoryTree, getTemplates, type CategoryNode, type LibraryTemplate } from '../lib/libraryApi';
@@ -11,7 +12,6 @@ import {
   CheckIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
-  CloseIcon,
   ContentLibraryIcon,
   LayersIcon,
   PlusIcon,
@@ -74,7 +74,6 @@ export default function SelectEvents() {
     const haystack = [
       template.category_name,
       template.sub_category_name,
-      ...(template.matches ?? []),
       template.report_title ?? '',
     ].join(' ');
     if (/התראה/.test(haystack)) return 'התראה';
@@ -98,7 +97,6 @@ export default function SelectEvents() {
       subCategory: template.sub_category_name ?? undefined,
       subCategoryId: template.sub_category_id,
       reportUrl: template.report_url,
-      matches: template.matches ?? undefined,
       city: template.city,
       country: template.country,
       threatLevel: template.threat_level,
@@ -480,67 +478,10 @@ export default function SelectEvents() {
 
       {/* Success Modal */}
       {isSavedSuccess && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="modal-card" style={{ maxWidth: '520px' }}>
-            <div className="modal-header">
-              <div className="modal-header-text">
-                <h2>הסימולציה נשמרה בהצלחה</h2>
-                <p>התרחיש המבצעי הוקם ומוכן להפעלה במערכת {SYSTEM_INFO[sys].name}</p>
-              </div>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => navigate('/')}
-              >
-                <CloseIcon size={16} />
-              </button>
-            </div>
-
-            <div style={{ padding: '1.5rem 1.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                <span style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  background: 'var(--ok-soft)',
-                  color: 'var(--ok)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid var(--ok-line)'
-                }}>
-                  <CheckIcon size={20} />
-                </span>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--ink)' }}>{simData.title}</h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-                    רמת קושי: {simData.difficulty} · {selectedEvents.length} אירועים
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer" style={{ gap: '0.75rem', justifyContent: 'flex-start' }}>
-              <button
-                type="button"
-                className="modal-cancel-btn"
-                onClick={() => {
-                  setIsSavedSuccess(false);
-                  navigate('/simulations/new');
-                }}
-              >
-                יצירת סימולציה נוספת
-              </button>
-              <button
-                type="button"
-                className="top-gold-btn"
-                onClick={() => navigate('/')}
-              >
-                חזרה ללוח הבקרה
-              </button>
-            </div>
-          </div>
-        </div>
+        <SimulationSavedModal title={simData.title} difficulty={simData.difficulty}
+          eventCount={selectedEvents.length} systemName={SYSTEM_INFO[sys].name}
+          onDashboard={() => navigate('/')}
+          onCreateAnother={() => { setIsSavedSuccess(false); navigate('/simulations/new'); }} />
       )}
     </div>
   );

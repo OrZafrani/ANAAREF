@@ -18,6 +18,7 @@ import { systemClock } from './scheduler/clock.js';
 import { runRepository } from './scheduler/runRepository.js';
 import { isLibraryEmpty, runSeedLibrary } from './seed/categorySeedLoader.js';
 import { ApiError } from './services/api-error.js';
+import { aiGenerationRoutes } from './routes/aiGenerationRoutes.js';
 
 const databaseConnectionErrorCodes = new Set([
   'ECONNREFUSED',
@@ -70,12 +71,14 @@ dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env'
 
 const app = express();
 app.use(cors());
+app.use('/api/simulations', express.json({ limit: '10mb' }));
 app.use(express.json());
 app.use(morgan('dev'));
 app.use('/api/categories', categoryRoutes);
 app.use('/api/sub-categories', subCategoryRoutes);
 app.use('/api/library', libraryRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/ai/generations', aiGenerationRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });

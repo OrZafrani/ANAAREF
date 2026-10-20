@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Simulation } from '../types/simulation';
-import { DIFFICULTY_PRESETS } from '../data/difficulty';
+import { DIFFICULTY_PRESETS, getSimulationMetrics } from '../data/difficulty';
+import { formatOffset } from '../lib/aiSimulation';
 import { SYSTEM_INFO } from '../lib/appSettings';
 import type { SimulationRun } from '../lib/runsApi';
 import { formatRelativeRunTime, runDuration, runStatusLabel } from '../lib/runFormat';
@@ -49,7 +50,7 @@ export default function SimulationDrawer({
   simulation, onClose, onDelete, runs, activeRun, now,
   runBlockReason, pendingRunAction, runActionError, onRun, onStop,
 }: SimulationDrawerProps) {
-  const preset = DIFFICULTY_PRESETS[simulation.difficulty];
+  const preset = getSimulationMetrics(simulation);
   const ownActiveRun = activeRun?.simulation_id === simulation.id ? activeRun : null;
   const events = [...simulation.events].sort((a, b) => a.minute - b.minute);
 
@@ -114,7 +115,7 @@ export default function SimulationDrawer({
               <ol className="mini-items">
                 {events.map((event) => (
                   <li className="mini-item" key={event.id}>
-                    <span className="mini-t mono">T+{event.minute}</span>
+                    <span className="mini-t mono">T+{simulation.aiGenerated ? formatOffset(Math.round(event.minute * 60)) : event.minute}</span>
                     <div className="mini-main">
                       <span className="mini-title">{event.title}</span>
                       <span className="mini-desc">{event.description}</span>
