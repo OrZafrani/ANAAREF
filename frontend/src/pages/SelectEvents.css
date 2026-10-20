@@ -757,16 +757,16 @@
   font-weight: 650;
 }
 
-.library-report-urgency:where(:not(.unknown)) {
-  color: #9a3412;
-  background: #fff7ed;
-}
-
 .library-report-urgency.unknown {
   color: #64748b;
   background: #f1f5f9;
   font-weight: 500;
 }
+
+.library-report-urgency.low { color: #166534; background: #f0fdf4; }
+.library-report-urgency.medium { color: #854d0e; background: #fefce8; }
+.library-report-urgency.high { color: #9a3412; background: #fff7ed; }
+.library-report-urgency.critical { color: #991b1b; background: #fef2f2; }
 
 .library-report-minute {
   display: inline-flex;

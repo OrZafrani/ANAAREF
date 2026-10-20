@@ -29,6 +29,7 @@ interface CreateSimulationInput {
   title: string;
   description: string;
   difficulty: DifficultyLevel;
+  sys?: Simulation['sys'];
   events: SimulationEvent[];
 }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CategoryNode } from '../lib/libraryApi';
+import { getUrgency } from '../lib/urgency';
 import type { EventCategory, SimulationEvent } from '../types/simulation';
 import { CloseIcon, PlusIcon, SearchIcon } from './Icons';
 
@@ -182,13 +183,7 @@ export default function ContentLibraryModal({
                 const categoryLabel = [libraryEvent.categoryName, libraryEvent.subCategory]
                   .filter(Boolean)
                   .join(' · ') || libraryEvent.category;
-                const threatLabel = libraryEvent.threatLevel == null
-                  ? 'לא דווחה רמת סיכון'
-                  : libraryEvent.threatLevel >= 70
-                    ? 'דחיפות גבוה'
-                    : libraryEvent.threatLevel >= 40
-                      ? 'דחיפות בינוני'
-                      : 'דחיפות נמוך';
+                const urgency = getUrgency(libraryEvent.threatLevel);
                 return (
                   <article
                     key={libraryEvent.id}
@@ -217,8 +212,8 @@ export default function ContentLibraryModal({
                         <span aria-hidden="true">⌖</span>
                         {[libraryEvent.city, libraryEvent.country].filter(Boolean).join(' · ') || 'אזור לא דווח'}
                       </span>
-                      <span className={`library-report-urgency ${libraryEvent.threatLevel == null ? 'unknown' : ''}`}>
-                        {threatLabel}
+                      <span className={`library-report-urgency ${urgency.level}`}>
+                        {urgency.level === 'unknown' ? 'לא דווחה רמת דחיפות' : `דחיפות: ${urgency.label}`}
                       </span>
                       <span className="library-report-minute">
                         דקה בסימולציה: {libraryEvent.minute}

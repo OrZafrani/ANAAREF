@@ -342,6 +342,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     const requestBody = JSON.parse(String(postCall?.[1]?.body));
     expect(requestBody.events).toHaveLength(1);
     expect(requestBody.events[0].title).toBe('זיהוי תנועה חשודה בגדר המערכת');
+    expect(requestBody.sys).toBe('spectre');
     expect(localStorage.getItem('cobra_simulations')).toBeNull();
   });
 

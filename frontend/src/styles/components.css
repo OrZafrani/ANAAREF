@@ -89,6 +89,7 @@
 .r-med { color: var(--risk-med); }
 .r-high { color: var(--risk-high); }
 .r-imm { color: var(--risk-imm); }
+.r-unk { color: var(--muted); }
 
 /* Filter chips: selected chip is neutral, not system-coloured */
 .chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }

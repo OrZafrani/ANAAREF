@@ -186,7 +186,7 @@ export default function SelectEvents() {
     setIsSaving(true);
     setSaveError('');
     try {
-      await createSimulation({ ...simData, events: selectedEvents });
+      await createSimulation({ ...simData, sys, events: selectedEvents });
       sessionStorage.removeItem('cobra_sim_draft');
       setIsSavedSuccess(true);
     } catch (error) {

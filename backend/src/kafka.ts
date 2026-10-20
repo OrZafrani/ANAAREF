@@ -26,11 +26,13 @@ const producer = kafka.producer({
 let connecting: Promise<void> | null = null;
 
 function ensureConnected(): Promise<void> {
-  connecting ??= producer.connect().catch((error: unknown) => {
-    connecting = null;
-    throw error;
+  if (connecting) return connecting;
+  const pendingConnection = producer.connect();
+  connecting = pendingConnection;
+  void pendingConnection.catch(() => {
+    if (connecting === pendingConnection) connecting = null;
   });
-  return connecting;
+  return pendingConnection;
 }
 
 export const reportPublisher: ReportPublisher & { disconnect(): Promise<void> } = {

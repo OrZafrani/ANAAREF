@@ -633,10 +633,11 @@
 .platform-tag,
 .threat-tag { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .platform-tag { color: var(--k-report-fg); background: var(--k-report-bg); }
-.threat-1, .threat-2 { color: var(--risk-low); background: var(--ok-soft); }
-.threat-3 { color: var(--risk-med); background: var(--warn-soft); }
-.threat-4 { color: var(--risk-high); background: var(--danger-soft); }
-.threat-5 { color: var(--risk-imm); background: var(--danger-soft); }
+.threat-low { color: var(--risk-low); background: var(--ok-soft); }
+.threat-medium { color: var(--risk-med); background: var(--warn-soft); }
+.threat-high { color: var(--risk-high); background: var(--danger-soft); }
+.threat-critical { color: var(--risk-imm); background: var(--danger-soft); }
+.threat-unknown { color: var(--muted); background: var(--surface-2); }
 .detail-content { margin: 18px 0 8px; padding: 14px 16px; border-right: 3px solid var(--sys); background: var(--surface-2); white-space: pre-wrap; line-height: 1.7; }
 .detail-translation { margin: 8px 0 18px; padding: 12px 16px; border-right: 3px solid var(--sys-line); color: var(--ink-2); background: var(--sys-soft); white-space: pre-wrap; line-height: 1.65; }
 .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 10px 0 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--line); }

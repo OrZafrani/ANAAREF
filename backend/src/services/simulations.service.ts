@@ -21,6 +21,7 @@ interface CreateSimulationInput {
   title: string;
   description: string | null;
   difficulty: keyof typeof DIFFICULTY_SETTINGS;
+  sys: 'spectre' | 'cm';
   events: SimulationEventInput[];
 }
 
@@ -42,6 +43,10 @@ const SIMULATION_SELECT = `
            WHEN 'expert' THEN 'מומחה'
            ELSE s.difficulty::text
          END AS difficulty,
+         CASE s.target_system::text
+           WHEN 'specter' THEN 'spectre'
+           WHEN 'combat' THEN 'cm'
+         END AS sys,
          s.created_at AS "createdAt",
          COALESCE(
            jsonb_agg(
@@ -49,7 +54,7 @@ const SIMULATION_SELECT = `
                'id', ris.report_id::text,
                'title', r.report_title,
                'category', COALESCE(
-                 r.matches[1],
+                 r.categories[1],
                  substring(r.original_content FROM E'^סיווג: ([^\\n]*)'),
                  'מבצעי'
                ),
@@ -106,6 +111,9 @@ function validateCreateInput(value: unknown): CreateSimulationInput {
   }
 
   const difficulty = input.difficulty as keyof typeof DIFFICULTY_SETTINGS;
+  if (input.sys !== undefined && input.sys !== 'spectre' && input.sys !== 'cm') {
+    throw new ApiError('A valid target system is required.', 400);
+  }
   const settings = DIFFICULTY_SETTINGS[difficulty];
   if (input.events.some((event) => event.minute * 60 > settings.lengthSeconds)) {
     throw new ApiError('Simulation events must fall within the simulation duration.', 400);
@@ -115,6 +123,7 @@ function validateCreateInput(value: unknown): CreateSimulationInput {
     title: input.title.trim(),
     description: typeof input.description === 'string' ? input.description.trim() || null : null,
     difficulty,
+    sys: input.sys === 'cm' ? 'cm' : 'spectre',
     events: input.events,
   };
 }
@@ -156,7 +165,13 @@ export async function createSimulation(value: unknown) {
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, name AS title, description, difficulty, length_s AS "lengthSeconds",
                  target_system AS "targetSystem", created_at AS "createdAt"`,
-      [input.title, input.description, settings.databaseValue, settings.lengthSeconds, 'specter'],
+      [
+        input.title,
+        input.description,
+        settings.databaseValue,
+        settings.lengthSeconds,
+        input.sys === 'cm' ? 'combat' : 'specter',
+      ],
     );
     const simulation = rows[0];
 
@@ -169,7 +184,7 @@ export async function createSimulation(value: unknown) {
       const reportResult = await client.query(
         `INSERT INTO reports (
            report_id, reality_id, schema_version, is_official, platform, report_url,
-           report_title, original_language, matches, collected_at, original_content
+           report_title, original_language, categories, collected_at, original_content
          )
          VALUES ($1, $2, 2, false, $3, $4, $5, 'he', ARRAY[$7]::text[], now() AT TIME ZONE 'utc', $6)
          RETURNING report_id`,
