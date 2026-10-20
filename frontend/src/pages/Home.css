@@ -348,6 +348,35 @@
   color: var(--muted);
 }
 
+.run-row:not(.run-head) {
+  min-height: 54px;
+  border-top: 1px solid var(--line);
+}
+
+.run-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.run-status {
+  justify-self: start;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-started { background: var(--warn-soft); color: var(--warn); }
+.status-completed { background: var(--ok-soft); color: var(--ok); }
+.status-stopped { background: var(--surface-2); color: var(--ink-2); }
+.status-failed { background: var(--danger-soft); color: var(--danger); }
+
+.active-run-card strong { color: var(--ink); }
+
 .runs-empty {
   margin: 0;
   padding: 18px 20px;

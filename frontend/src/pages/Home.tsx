@@ -5,6 +5,7 @@ import { DifficultyLevel, Simulation } from '../types/simulation';
 import { DIFFICULTY_FILTERS, DIFFICULTY_PRESETS } from '../data/difficulty';
 import { getCategoryTree } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
+import { getRunningSimulation, getSimulationRuns, SimulationRun } from '../lib/runsApi';
 import { PlusIcon, PlayCircleIcon, SearchIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
 
@@ -27,6 +28,34 @@ function hasDraft() {
   }
 }
 
+function runDuration(run: SimulationRun, now: number) {
+  const end = run.completed_at ? new Date(run.completed_at).getTime() : now;
+  const startedAt = new Date(run.started_at).getTime();
+  if (Number.isNaN(startedAt) || Number.isNaN(end)) return '—';
+  const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes} דק׳ ${seconds} שנ׳` : `${seconds} שנ׳`;
+}
+
+function runStatusLabel(status: SimulationRun['status']) {
+  return {
+    started: 'פעילה',
+    completed: 'הושלמה',
+    stopped: 'נעצרה',
+    failed: 'נכשלה',
+  }[status];
+}
+
+function runTargetLabel(target: SimulationRun['target_system']) {
+  return target === 'specter' ? SYSTEM_INFO.spectre.name : SYSTEM_INFO.cm.name;
+}
+
+function formatRunStart(iso: string) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('he-IL');
+}
+
 export default function Home() {
   const { sys } = useAppSettings();
   const sysInfo = SYSTEM_INFO[sys];
@@ -36,6 +65,11 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'all'>('all');
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
+  const [recentRuns, setRecentRuns] = useState<SimulationRun[]>([]);
+  const [activeRun, setActiveRun] = useState<SimulationRun | null>(null);
+  const [runsLoading, setRunsLoading] = useState(true);
+  const [runsError, setRunsError] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const draftOpen = hasDraft();
 
   useEffect(() => {
@@ -48,6 +82,32 @@ export default function Home() {
         if (active) setLibraryCount(null);
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const refreshRuns = async () => {
+      const [runsResult, activeResult] = await Promise.allSettled([
+        getSimulationRuns(),
+        getRunningSimulation(),
+      ]);
+      if (!active) return;
+      if (runsResult.status === 'fulfilled') {
+        setRecentRuns(runsResult.value.slice(0, 5));
+        setRunsError(false);
+      } else {
+        setRunsError(true);
+      }
+      if (activeResult.status === 'fulfilled') setActiveRun(activeResult.value);
+      setRunsLoading(false);
+      setNow(Date.now());
+    };
+    void refreshRuns();
+    const interval = window.setInterval(() => void refreshRuns(), 10_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   // Simulations saved before the system switch existed have no sys and belong to SPECTRE.
@@ -107,10 +167,18 @@ export default function Home() {
 
       <section className="dash-sec" aria-labelledby="active-title">
         <h2 className="dash-sec-title" id="active-title">סימולציה פעילה</h2>
-        <div className="card active-empty">
-          <PlayCircleIcon size={18} />
-          <span>אין סימולציה פעילה ב-{sysInfo.name}. הרצת סימולציות עדיין לא זמינה במערכת.</span>
-        </div>
+        {activeRun ? (
+          <div className="card active-empty active-run-card">
+            <PlayCircleIcon size={18} />
+            <span><strong>{activeRun.simulation_name}</strong> · {runTargetLabel(activeRun.target_system)} · התחילה {formatRunStart(activeRun.started_at)}</span>
+            <span className="run-status status-started">פעילה · {runDuration(activeRun, now)}</span>
+          </div>
+        ) : (
+          <div className="card active-empty">
+            <PlayCircleIcon size={18} />
+            <span>{runsLoading ? 'בודק אם יש סימולציה פעילה…' : `אין סימולציה פעילה כרגע. ניתן להריץ סימולציה אחת בכל פעם.`}</span>
+          </div>
+        )}
       </section>
 
       <section className="dash-sec" aria-labelledby="saved-title">
@@ -237,17 +305,31 @@ export default function Home() {
       <section className="dash-sec" aria-labelledby="runs-title">
         <h2 className="dash-sec-title" id="runs-title">
           ריצות אחרונות
-          <span className="sec-count mono">0</span>
+          <span className="sec-count mono">{recentRuns.length}</span>
         </h2>
         <div className="card runs">
           <div className="run-row run-head" aria-hidden="true">
             <span>סימולציה</span>
             <span>מערכת יעד</span>
-            <span>זמן שליחה</span>
+            <span>זמן התחלה</span>
             <span>משך</span>
             <span>סטטוס</span>
           </div>
-          <p className="runs-empty">עדיין לא הורצו סימולציות.</p>
+          {runsLoading ? (
+            <p className="runs-empty">טוען ריצות אחרונות…</p>
+          ) : runsError ? (
+            <p className="runs-empty" role="status">לא ניתן לטעון את הריצות האחרונות כרגע.</p>
+          ) : recentRuns.length === 0 ? (
+            <p className="runs-empty">עדיין לא הורצו סימולציות.</p>
+          ) : recentRuns.map((run) => (
+            <div className="run-row" key={run.id}>
+              <span className="run-name" title={run.simulation_name}>{run.simulation_name}</span>
+              <span>{runTargetLabel(run.target_system)}</span>
+              <time dateTime={run.started_at}>{formatRunStart(run.started_at)}</time>
+              <span>{runDuration(run, now)}</span>
+              <span className={`run-status status-${run.status}`}>{runStatusLabel(run.status)}</span>
+            </div>
+          ))}
         </div>
       </section>
 

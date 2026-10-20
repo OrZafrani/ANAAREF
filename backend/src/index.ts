@@ -10,7 +10,7 @@ import { reportPublisher } from './kafka.js';
 import { apiErrorHandler } from './lib/validate.js';
 import { categoryRoutes, subCategoryRoutes } from './routes/categoryRoutes.js';
 import { libraryRoutes } from './routes/libraryRoutes.js';
-import { createRunRoutes } from './routes/runRoutes.js';
+import { createRunCollectionRoutes, createRunRoutes } from './routes/runRoutes.js';
 import { templateRoutes } from './routes/templateRoutes.js';
 import { createScheduler } from './scheduler/index.js';
 import { systemClock } from './scheduler/clock.js';
@@ -39,6 +39,7 @@ const scheduler = createScheduler({
   clock: systemClock,
   ...config.scheduler,
 });
+app.use('/api/simulations/runs', createRunCollectionRoutes(scheduler));
 app.use('/api/simulations/:simulationId/runs', createRunRoutes(scheduler));
 
 app.use(apiErrorHandler);
