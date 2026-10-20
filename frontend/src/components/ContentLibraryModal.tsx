@@ -10,6 +10,10 @@ interface ContentLibraryModalProps {
   selectedIds: Set<string>;
   onToggle: (event: SimulationEvent) => void;
   onAddCustom: (event: SimulationEvent) => void;
+  loadLibrary?: () => Promise<{ categories: CategoryNode[]; templates: LibraryTemplate[] }>;
+  onToggleTemplate?: (template: LibraryTemplate, minute: number) => void;
+  allowCustom?: boolean;
+  maxMinute?: number;
 }
 
 function toSimulationEvent(template: LibraryTemplate, minute: number): SimulationEvent {
@@ -32,6 +36,10 @@ export default function ContentLibraryModal({
   selectedIds,
   onToggle,
   onAddCustom,
+  loadLibrary,
+  onToggleTemplate,
+  allowCustom = true,
+  maxMinute = 180,
 }: ContentLibraryModalProps) {
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [templates, setTemplates] = useState<LibraryTemplate[]>([]);
@@ -53,8 +61,10 @@ export default function ContentLibraryModal({
     let active = true;
     setLoading(true);
     setError('');
-    Promise.all([getCategoryTree(), getTemplates({})])
-      .then(([tree, reports]) => {
+    const load = loadLibrary
+      ? loadLibrary()
+      : Promise.all([getCategoryTree(), getTemplates({})]).then(([tree, reports]) => ({ categories: tree, templates: reports }));
+    load.then(({ categories: tree, templates: reports }) => {
         if (!active) return;
         setCategories(tree);
         setTemplates(reports);
@@ -68,7 +78,7 @@ export default function ContentLibraryModal({
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [isOpen]);
+  }, [isOpen, loadLibrary]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -212,7 +222,7 @@ export default function ContentLibraryModal({
                 const selected = selectedIds.has(eventId);
                 const minuteValue = minutes[template.id] ?? '1';
                 const minute = Number(minuteValue);
-                const validMinute = Number.isInteger(minute) && minute >= 1 && minute <= 180;
+                const validMinute = Number.isInteger(minute) && minute >= 1 && minute <= maxMinute;
                 const simulationEvent = toSimulationEvent(template, minute);
                 return (
                   <article key={template.id} className={`catalog-event-box ${selected ? 'is-added' : ''}`}>
@@ -235,7 +245,7 @@ export default function ContentLibraryModal({
                         <input
                           type="number"
                           min="1"
-                          max="180"
+                          max={maxMinute}
                           aria-label={`דקה בסימולציה: ${template.report_title || 'דיווח ללא כותרת'}`}
                           value={minuteValue}
                           onChange={(event) => setMinutes({ ...minutes, [template.id]: event.target.value })}
@@ -246,7 +256,7 @@ export default function ContentLibraryModal({
                         className={`btn-add-event ${selected ? 'added' : ''}`}
                         disabled={!validMinute}
                         aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${template.report_title || 'דיווח ללא כותרת'}`}
-                        onClick={() => onToggle(simulationEvent)}
+                        onClick={() => onToggleTemplate ? onToggleTemplate(template, minute) : onToggle(simulationEvent)}
                       >
                         {selected ? <><CheckIcon size={14} /><span>נבחר לסימולציה</span></> : <><PlusIcon size={14} /><span>הוסף לסימולציה</span></>}
                       </button>
@@ -256,7 +266,7 @@ export default function ContentLibraryModal({
               })
             )}
 
-            {!showCustomForm ? (
+            {allowCustom && (!showCustomForm ? (
               <button type="button" className="btn-toggle-custom" onClick={() => setShowCustomForm(true)}>
                 <PlusIcon size={16} />
                 <span>הוסף אירוע מותאם אישית</span>
@@ -317,7 +327,7 @@ export default function ContentLibraryModal({
                   <button type="submit" className="btn-bottom-next">הוסף אירוע</button>
                 </div>
               </form>
-            )}
+            ))}
           </div>
         </div>
         <div className="library-modal-footer">

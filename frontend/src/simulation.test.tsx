@@ -65,7 +65,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(screen.getByText('יצירת סימולציה חדשה')).toBeInTheDocument();
     expect(screen.getByText('יצירה ידנית')).toBeInTheDocument();
     expect(screen.getByText('יצירה אוטומטית (AI)')).toBeInTheDocument();
-    expect(screen.getByText('בקרוב')).toBeInTheDocument();
+    expect(screen.getByText('הדגמת Frontend')).toBeInTheDocument();
   });
 
   it('renders create simulation page matching mockup elements', () => {

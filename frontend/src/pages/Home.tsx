@@ -1,5 +1,6 @@
 import  { useEffect, useState } from 'react';
 import NewSimulationModal from '../components/NewSimulationModal';
+import AiSavedSimulations from '../components/ai/AiSavedSimulations';
 import { Simulation } from '../types/simulation';
 import { PlusIcon, LayersIcon, TrashIcon } from '../components/Icons';
 import './Home.css';
@@ -96,6 +97,8 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <AiSavedSimulations />
 
       {/* Modal with Manual & AI options */}
       <NewSimulationModal

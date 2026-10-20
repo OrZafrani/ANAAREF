@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CloseIcon, ManualIcon, AiIcon, ArrowLeftIcon } from './Icons';
 import './NewSimulationModal.css';
@@ -90,11 +90,17 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
 
           {/* AI Option */}
           <div
-            className="option-card option-card-disabled"
+            className="option-card"
             role="button"
-            aria-disabled="true"
-            tabIndex={-1}
-            title="אפשרות זו אינה זמינה כעת"
+            tabIndex={0}
+            onClick={() => { onClose(); navigate('/simulations/ai'); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClose();
+                navigate('/simulations/ai');
+              }
+            }}
           >
             <div className="option-icon-wrap">
               <AiIcon size={22} />
@@ -102,13 +108,13 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
             <div className="option-content">
               <div className="option-top-row">
                 <span className="option-title">יצירה אוטומטית (AI)</span>
-                <span className="option-badge option-badge-soon">בקרוב</span>
+                <span className="option-badge option-badge-recommended">הדגמת Frontend</span>
               </div>
               <p className="option-desc">
                 יצירת תרחיש סימולציה ואירועים באופן אוטומטי בהתבסס על מודלי שפה והנחיות טקסטואליות.
               </p>
               <span className="option-note">
-                אפשרות זו נמצאת כעת בפיתוח ותהיה זמינה בגרסה עתידית.
+                בנייה בשיחה, בדיקת דיווחים ושמירה מקומית. ללא חיבור לשירות AI בשלב זה.
               </span>
             </div>
           </div>
@@ -123,4 +129,3 @@ export default function NewSimulationModal({ isOpen, onClose }: NewSimulationMod
     </div>
   );
 }
-
