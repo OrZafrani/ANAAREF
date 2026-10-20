@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
@@ -7,7 +7,6 @@ import {
   SimulationEvent,
   Simulation,
 } from '../types/simulation';
-import { PRESET_EVENTS } from '../data/presetEvents';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import {
   CheckIcon,
@@ -53,7 +52,6 @@ export default function SelectEvents() {
   });
 
   const [currentStep, setCurrentStep] = useState<2 | 3>(2);
-  const [availableEvents, setAvailableEvents] = useState<SimulationEvent[]>(PRESET_EVENTS);
   const [selectedEvents, setSelectedEvents] = useState<SimulationEvent[]>([]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -76,7 +74,6 @@ export default function SelectEvents() {
   };
 
   const handleAddCustomEvent = (newEvent: SimulationEvent) => {
-    setAvailableEvents([newEvent, ...availableEvents]);
     setSelectedEvents([...selectedEvents, newEvent]);
   };
 
@@ -183,7 +180,7 @@ export default function SelectEvents() {
                       <div className="selected-text">
                         <h5 className="selected-text-title">{evt.title}</h5>
                         <div className="selected-text-sub">
-                          <span>סיווג: {evt.category}</span>
+                          <span>קטגוריה: {evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
                         </div>
@@ -280,7 +277,7 @@ export default function SelectEvents() {
                       <div className="selected-text">
                         <h5 className="selected-text-title">{evt.title}</h5>
                         <div className="selected-text-sub">
-                          <span>סיווג: {evt.category}</span>
+                          <span>קטגוריה: {evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
                           <span>•</span>
                           <span>דקה {evt.minute}</span>
                         </div>
@@ -319,7 +316,6 @@ export default function SelectEvents() {
       <ContentLibraryModal
         isOpen={isLibraryOpen}
         onClose={() => setIsLibraryOpen(false)}
-        availableEvents={availableEvents}
         selectedIds={selectedIds}
         onToggle={handleToggleEvent}
         onAddCustom={handleAddCustomEvent}
