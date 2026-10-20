@@ -1,7 +1,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.6);
+  background-color: var(--scrim-2);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -12,12 +12,12 @@
 }
 
 .modal-card {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 14px;
   width: 100%;
   max-width: 640px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: none;
+  border: 1px solid var(--line);
   overflow: hidden;
   animation: modalFadeIn 0.2s ease-out;
 }
@@ -38,40 +38,40 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 1.5rem 1.75rem 1rem 1.75rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
 }
 
 .modal-header-text h2 {
   margin: 0 0 0.35rem 0;
   font-size: 1.35rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .modal-header-text p {
   margin: 0;
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--muted);
 }
 
 .modal-close-btn {
   background: transparent;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 8px;
   width: 34px;
   height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--muted);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .modal-close-btn:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background-color: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--line-2);
 }
 
 .modal-body {
@@ -88,8 +88,8 @@
   gap: 1.15rem;
   padding: 1.25rem;
   border-radius: 12px;
-  border: 1.5px solid #e2e8f0;
-  background: #ffffff;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
   text-align: start;
   direction: rtl;
   transition: all 0.2s ease;
@@ -98,19 +98,19 @@
 }
 
 .option-card:hover:not(.option-card-disabled) {
-  border-color: #0f172a;
-  background: #f8fafc;
+  border-color: var(--neutral-btn);
+  background: var(--surface-2);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  box-shadow: none;
 }
 
 .option-card-active {
-  border-color: #0f172a;
+  border-color: var(--neutral-btn);
 }
 
 .option-card-disabled {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+  background: var(--surface-2);
+  border-color: var(--line);
   cursor: not-allowed;
   opacity: 0.72;
 }
@@ -123,14 +123,14 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background-color: #f1f5f9;
-  color: #0f172a;
-  border: 1px solid #e2e8f0;
+  background-color: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
 }
 
 .option-card-disabled .option-icon-wrap {
-  background-color: #e2e8f0;
-  color: #94a3b8;
+  background-color: var(--track);
+  color: var(--muted);
 }
 
 .option-content {
@@ -147,11 +147,11 @@
 .option-title {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .option-card-disabled .option-title {
-  color: #64748b;
+  color: var(--muted);
 }
 
 .option-badge {
@@ -162,32 +162,32 @@
 }
 
 .option-badge-recommended {
-  background-color: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background-color: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid var(--ok-line);
 }
 
 .option-badge-soon {
-  background-color: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
+  background-color: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--line-2);
 }
 
 .option-desc {
   margin: 0 0 0.5rem 0;
   font-size: 0.88rem;
-  color: #475569;
+  color: var(--ink-2);
   line-height: 1.45;
 }
 
 .option-card-disabled .option-desc {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .option-action-hint {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ink);
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -195,7 +195,7 @@
 
 .option-note {
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--muted);
   font-style: italic;
 }
 
@@ -203,13 +203,13 @@
   padding: 1rem 1.75rem 1.5rem 1.75rem;
   display: flex;
   justify-content: flex-start;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--line);
 }
 
 .modal-cancel-btn {
   background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #475569;
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
   padding: 0.55rem 1.25rem;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -219,7 +219,7 @@
 }
 
 .modal-cancel-btn:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: var(--surface-2);
+  color: var(--ink);
 }
 

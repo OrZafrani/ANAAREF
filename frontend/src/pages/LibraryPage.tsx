@@ -16,6 +16,7 @@ import {
   type LibraryTemplate,
   type TemplateWrite,
 } from '../lib/libraryApi';
+import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import './LibraryPage.css';
 
 type Selection = { categoryId: string | null; subCategoryId: string | null };
@@ -44,6 +45,8 @@ function threatClass(value: number | null) {
 }
 
 export default function LibraryPage() {
+  const { sys } = useAppSettings();
+  const sysInfo = SYSTEM_INFO[sys];
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [templates, setTemplates] = useState<LibraryTemplate[]>([]);
   const [selection, setSelection] = useState<Selection>({ categoryId: null, subCategoryId: null });
@@ -305,13 +308,13 @@ export default function LibraryPage() {
 
         <main className="template-browser">
           <div className="browser-topbar">
-            <span className="eyebrow">SPECTRE · ספריית תוכן</span>
+            <span className="eyebrow">{sysInfo.name} · ספריית תוכן</span>
             {canWrite && <button className="button button-primary new-template-button" type="button" onClick={() => setTemplateDialog({ mode: 'create', template: null })}>＋ תבנית חדשה</button>}
           </div>
           <div className="browser-heading">
             <div>
               <h1>דיווחים</h1>
-              <p>תבניות SPECTRE לשימוש חוזר, כולל דוגמאות לדיווחים כפולים, שגויים ורעש רקע.</p>
+              <p>תבניות {sysInfo.name} לשימוש חוזר, כולל דוגמאות לדיווחים כפולים, שגויים ורעש רקע.</p>
             </div>
             <div className="browser-counts"><strong>{visibleTemplates.length} דיווחים</strong><span>{selectedSubCategory?.name ?? selectedCategory?.name ?? 'כל הקטגוריות'}</span></div>
           </div>

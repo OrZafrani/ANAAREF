@@ -1,9 +1,15 @@
+@import './styles/tokens.css';
+@import './styles/components.css';
+
 :root {
-  font-family: 'Assistant', 'Arial', sans-serif;
-  color: #182522;
-  background: #f5f7f4;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 html {
@@ -14,6 +20,8 @@ body {
   margin: 0;
   direction: rtl;
   text-align: start;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 *, *::before, *::after {
@@ -27,6 +35,10 @@ input, textarea, select {
 
 input::placeholder, textarea::placeholder {
   text-align: start;
+  color: var(--muted);
+  opacity: .8;
 }
 
-button, input, select, textarea { font-family: inherit; }
+button, input, select, textarea { font-family: inherit; color: inherit; }
+
+a { color: var(--sys-strong); }

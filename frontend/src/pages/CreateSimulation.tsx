@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import { SignalBarsIcon, ArrowLeftIcon, ArrowRightIcon } from '../components/Icons';
 import { DifficultyLevel, SimulationFormData } from '../types/simulation';
+import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
 import './CreateSimulation.css';
 
 interface DifficultyOption {
@@ -35,6 +36,7 @@ const DIFFICULTY_CONFIG: DifficultyOption[] = [
 
 export default function CreateSimulation() {
   const navigate = useNavigate();
+  const { sys } = useAppSettings();
 
   const [formData, setFormData] = useState<SimulationFormData>(() => {
     try {
@@ -100,7 +102,7 @@ export default function CreateSimulation() {
           <div className="builder-card-header">
             <h2 className="builder-card-title">פרטי הסימולציה</h2>
             <p className="builder-card-subtitle">
-              הסימולציה תיבנה עבור SPECTRE, לפי המערכת שנבחרה בסרגל העליון.
+              הסימולציה תיבנה עבור {SYSTEM_INFO[sys].name}, לפי המערכת שנבחרה בסרגל העליון.
             </p>
           </div>
 
