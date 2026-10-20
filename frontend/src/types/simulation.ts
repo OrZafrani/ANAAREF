@@ -11,6 +11,10 @@ export interface SimulationEvent {
   subCategory?: string;
   subCategoryId?: string | null;
   reportUrl?: string;
+  matches?: string[];
+  city?: string | null;
+  country?: string | null;
+  threatLevel?: number | null;
   minute: number;
   description: string;
 }

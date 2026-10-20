@@ -334,7 +334,7 @@ export default function LibraryPage() {
                 <div className="card-meta">
                   <span className="card-location"><span aria-hidden="true">⌖</span>{[template.city, template.country].filter(Boolean).join(' · ') || 'מיקום לא דווח'}</span>
                   <span className="card-time"><span aria-hidden="true">◷</span>{new Date(template.happened_at ?? template.collected_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className={`threat-tag ${threatClass(template.threat_level)}`}><i />{(template.threat_level ?? 0) >= 70 ? 'סיכון גבוה' : (template.threat_level ?? 0) >= 40 ? 'סיכון בינוני' : 'סיכון נמוך'}</span>
+                  <span className={`threat-tag ${threatClass(template.threat_level)}`}><i />{(template.threat_level ?? 0) >= 70 ? 'דחיפות גבוה' : (template.threat_level ?? 0) >= 40 ? 'דחיפות בינונית' : 'דחיפות נמוכה'}</span>
                 </div>
                 <div className="card-casualties">
                   <span><i className="blue-dot" />כוחותינו: {template.blue_injured_count ?? 'לא ידוע'}</span>

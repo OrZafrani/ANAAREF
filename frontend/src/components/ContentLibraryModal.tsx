@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CategoryNode } from '../lib/libraryApi';
 import type { EventCategory, SimulationEvent } from '../types/simulation';
-import { CheckIcon, CloseIcon, PlusIcon, SearchIcon } from './Icons';
+import { CloseIcon, PlusIcon, SearchIcon } from './Icons';
 
 interface ContentLibraryModalProps {
   isOpen: boolean;
@@ -31,7 +31,6 @@ export default function ContentLibraryModal({
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null);
-  const [minutes, setMinutes] = useState<Record<string, string>>({});
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
   const [customCategory, setCustomCategory] = useState<EventCategory>('מבצעי');
@@ -179,43 +178,51 @@ export default function ContentLibraryModal({
             ) : (
               filteredEvents.map((libraryEvent) => {
                 const selected = selectedIds.has(libraryEvent.id);
-                const minuteValue = minutes[libraryEvent.id] ?? String(libraryEvent.minute);
-                const minute = Number(minuteValue);
-                const validMinute = Number.isInteger(minute) && minute >= 1 && minute <= 180;
-                const simulationEvent = { ...libraryEvent, minute };
+                const simulationEvent = libraryEvent;
                 const categoryLabel = [libraryEvent.categoryName, libraryEvent.subCategory]
                   .filter(Boolean)
                   .join(' · ') || libraryEvent.category;
+                const threatLabel = libraryEvent.threatLevel == null
+                  ? 'לא דווחה רמת סיכון'
+                  : libraryEvent.threatLevel >= 70
+                    ? 'דחיפות גבוה'
+                    : libraryEvent.threatLevel >= 40
+                      ? 'דחיפות בינוני'
+                      : 'דחיפות נמוך';
                 return (
-                  <article key={libraryEvent.id} className={`catalog-event-box ${selected ? 'is-added' : ''}`}>
-                    <div className="box-top-line">
-                      <h4 className="box-title">{libraryEvent.title || 'דיווח ללא כותרת'}</h4>
-                      <div className="box-tags">
-                        <span className="library-report-category">{categoryLabel}</span>
-                      </div>
-                    </div>
-                    <p className="box-desc">{libraryEvent.description}</p>
-                    <div className="library-report-actions">
-                      <label>
-                        דקה בסימולציה
+                  <article
+                    key={libraryEvent.id}
+                    className={`catalog-event-box library-report-card ${selected ? 'is-added' : ''}`}
+                    onClick={() => onToggle(simulationEvent)}
+                  >
+                    <div className="library-report-meta-top">
+                      <label
+                        className="library-report-select"
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         <input
-                          type="number"
-                          min="1"
-                          max="180"
-                          aria-label={`דקה בסימולציה: ${libraryEvent.title || 'דיווח ללא כותרת'}`}
-                          value={minuteValue}
-                          onChange={(event) => setMinutes({ ...minutes, [libraryEvent.id]: event.target.value })}
+                          type="checkbox"
+                          checked={selected}
+                          aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${libraryEvent.title || 'דיווח ללא כותרת'}`}
+                          onChange={() => onToggle(simulationEvent)}
                         />
                       </label>
-                      <button
-                        type="button"
-                        className={`btn-add-event ${selected ? 'added' : ''}`}
-                        disabled={!validMinute}
-                        aria-label={`${selected ? 'הסר מהסימולציה' : 'הוסף לסימולציה'}: ${libraryEvent.title || 'דיווח ללא כותרת'}`}
-                        onClick={() => onToggle(simulationEvent)}
-                      >
-                        {selected ? <><CheckIcon size={14} /><span>נבחר לסימולציה</span></> : <><PlusIcon size={14} /><span>הוסף לסימולציה</span></>}
-                      </button>
+                      <span className="library-report-original">מקורי</span>
+                      <span className="library-report-category">{categoryLabel}</span>
+                    </div>
+                    <h4 className="box-title library-report-card-title">{libraryEvent.title || 'דיווח ללא כותרת'}</h4>
+                    <p className="box-desc">{libraryEvent.description}</p>
+                    <div className="library-report-card-footer">
+                      <span className="library-report-area">
+                        <span aria-hidden="true">⌖</span>
+                        {[libraryEvent.city, libraryEvent.country].filter(Boolean).join(' · ') || 'אזור לא דווח'}
+                      </span>
+                      <span className={`library-report-urgency ${libraryEvent.threatLevel == null ? 'unknown' : ''}`}>
+                        {threatLabel}
+                      </span>
+                      <span className="library-report-minute">
+                        דקה בסימולציה: {libraryEvent.minute}
+                      </span>
                     </div>
                   </article>
                 );

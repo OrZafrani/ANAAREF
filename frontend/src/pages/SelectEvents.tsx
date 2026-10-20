@@ -96,6 +96,10 @@ export default function SelectEvents() {
       subCategory: template.sub_category_name ?? undefined,
       subCategoryId: template.sub_category_id,
       reportUrl: template.report_url,
+      matches: template.matches ?? undefined,
+      city: template.city,
+      country: template.country,
+      threatLevel: template.threat_level,
       minute: Math.min(Math.max(Math.round(((index + 1) / count) * cap) || 1, 1), cap),
       description: template.original_content?.slice(0, 500) || template.report_title || 'דיווח מספריית התוכן.',
     }));

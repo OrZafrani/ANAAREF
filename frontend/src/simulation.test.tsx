@@ -168,10 +168,12 @@ describe('Simulation Flow - Mockup Alignment', () => {
         sub_category_id: 'subcategory-1',
         category_name: 'תפעול',
         sub_category_name: 'התראות',
+        matches: ['חשד', 'גבול'],
         report_title: 'דיווח מספריית התוכן',
         original_content: 'תוכן הדיווח שנשמר בספרייה',
         translated_content: null,
         report_url: 'https://example.com/report-1',
+        threat_level: 80,
         city: 'באר שבע',
         country: 'IL',
         happened_at: null,
@@ -234,19 +236,29 @@ describe('Simulation Flow - Mockup Alignment', () => {
     await waitFor(() => expect(screen.getByText('דיווח מספריית התוכן')).toBeInTheDocument());
     expect(screen.getAllByText('תפעול').length).toBeGreaterThan(0);
     expect(screen.getByText('התראות')).toBeInTheDocument();
+    expect(screen.getAllByText('מקורי')).toHaveLength(2);
+    expect(screen.queryByText(/חשד, גבול/)).not.toBeInTheDocument();
+    expect(screen.queryByText('מקור רשמי')).not.toBeInTheDocument();
+    expect(screen.queryByText('מקור פתוח')).not.toBeInTheDocument();
+    expect(screen.getByText('באר שבע · IL')).toBeInTheDocument();
+    expect(screen.getByText('דחיפות גבוה')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ })).not.toBeInTheDocument();
     expect(screen.getByText('דיווח כללי')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /התראות/ }));
     expect(screen.queryByText('דיווח כללי')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole('spinbutton', { name: /דקה בסימולציה: דיווח מספריית התוכן/ }), {
-      target: { value: '7' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ }));
+    expect(screen.getByText(/דקה בסימולציה: 23/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
 
     // Check count and selection state
     expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
-    expect(screen.getByText('דקה 7')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeInTheDocument();
+    expect(screen.getByText('דקה 23')).toBeInTheDocument();
+    const reportCheckbox = screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ });
+    expect(reportCheckbox).toBeChecked();
+    fireEvent.click(reportCheckbox);
+    expect(screen.getByRole('checkbox', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ })).not.toBeChecked();
+    fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
+    expect(screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
   });
@@ -291,7 +303,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     // Wait for DB library to load, then pick the template event
     expect(await screen.findByText(/דיווחים זמינים מספריית התוכן/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
-    fireEvent.click((await screen.findAllByRole('button', { name: /הוסף לסימולציה/i }))[0]);
+    fireEvent.click(await screen.findByRole('checkbox', { name: /הוסף לסימולציה:/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
     fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
 
