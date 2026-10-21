@@ -62,7 +62,8 @@ describe('Cobra AI generation integration', () => {
   });
 
   it('converts quoted multiline CSV to entity payloads with exact types, offsets, and unknown counts', () => {
-    const reports = convertReportCsv(csv(), 2, 600);
+    const { reports, warnings } = convertReportCsv(csv(), 2, 600);
+    expect(warnings).toEqual([]);
     expect(reports).toHaveLength(2);
     expect(reports[0]).toMatchObject({
       kind: 'unclassified', origin: 'ai', template_id: null, dispatch_offset_s: 60,
@@ -97,14 +98,32 @@ describe('Cobra AI generation integration', () => {
     { blue_death_count: 'unknown' }, { blue_death_count: '2.5' }, { blue_death_count: '2147483648' },
     { dispatch_offset_s: '' }, { dispatch_offset_s: '-1' }, { dispatch_offset_s: '601' },
     { is_official: 'yes' }, { lat: '91' }, { schema_version: '' }, { collected_at: 'invalid' },
-  ])('rejects invalid CSV rows instead of silently coercing them: %j', (change) => {
-    expect(() => convertReportCsv(csv([{ ...row, ...change }]), 1, 600)).toThrow();
+  ])('excludes invalid CSV rows while retaining the valid row: %j', (change) => {
+    const { reports, warnings } = convertReportCsv(csv([{ ...row, ...change }, row]), 2, 600);
+    expect(reports).toHaveLength(1);
+    expect(reports[0].payload.original_content).toBe(row.original_content);
+    expect(warnings).toEqual([expect.stringContaining('1'), expect.stringContaining('row 1')]);
+    expect(() => convertReportCsv(csv([{ ...row, ...change }]), 1, 600)).toThrow('no valid reports');
   });
 
-  it('rejects missing/duplicate columns, bad quotes and incorrect row counts', () => {
+  it('rejects missing/duplicate columns, bad quotes, empty files and excessive row counts', () => {
     expect(() => convertReportCsv('platform,platform\nx,x', 1, 600)).toThrow('columns');
     expect(() => convertReportCsv(csv() + '"', 2, 600)).toThrow();
-    expect(() => convertReportCsv(csv(), 3, 600)).toThrow('count');
+    expect(() => convertReportCsv(csv(), 1, 600)).toThrow('count');
+    expect(() => convertReportCsv(csv([]), 2, 600)).toThrow('no valid reports');
+  });
+
+  it('accepts a single valid row from a request for 100 reports without padding the result', () => {
+    const { reports, warnings } = convertReportCsv(csv([row]), 100, 600);
+    expect(reports).toHaveLength(1);
+    expect(warnings).toEqual([expect.stringContaining('1 דיווחים תקינים מתוך 100')]);
+  });
+
+  it('preserves valid rows in chronological order without changing their offsets', () => {
+    const { reports } = convertReportCsv(csv([
+      { ...row, dispatch_offset_s: '197' }, { ...row, collected_at: 'invalid' }, { ...row, dispatch_offset_s: '0' },
+    ]), 3, 600);
+    expect(reports.map((report) => report.dispatch_offset_s)).toEqual([0, 197]);
   });
 
   it.each(['queued', 'running'])('polls %s without downloading a CSV', async (status) => {
@@ -121,12 +140,14 @@ describe('Cobra AI generation integration', () => {
     expect(vi.mocked(fetch).mock.calls[1][0]).toBe('http://cobra.test/runs/test-run/files/reports.csv');
   });
 
-  it('surfaces completed jobs with failed quality checks without importing their reports', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+  it('imports valid reports despite failed quality checks without requiring repair summary metadata', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
       ...completed, result: { ...completed.result, ok: false, check: { passed: false, hard_failures: ['valid first call >= 90%'] } },
-    })));
-    await expect(getGeneration('test-run')).resolves.toMatchObject({ status: 'failed', error: expect.stringContaining('90%') });
-    expect(fetch).toHaveBeenCalledTimes(1);
+    }))).mockResolvedValueOnce(new Response(csv([row])));
+    const result = await getGeneration('test-run');
+    expect(result).toMatchObject({ status: 'completed', reports: [expect.objectContaining({ dispatch_offset_s: 60 })] });
+    expect(result.warnings).toContainEqual(expect.stringContaining('90%'));
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   const repairedSummary = { report_count: 2, rows_written: 2, rows_valid_first_call: 1, rows_repaired: 1, rows_schema_failed: 0 };
@@ -135,7 +156,7 @@ describe('Cobra AI generation integration', () => {
       check: { passed: false, hard_failures: failures, warnings: ['Provider warning'] } } };
   }
 
-  it('imports fully repaired rows with an explicit warning only for the first-call threshold', async () => {
+  it('imports fully repaired rows with quality warnings', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(repairedResult())))
       .mockResolvedValueOnce(new Response(csv()));
     const result = await getGeneration('test-run');
@@ -156,16 +177,36 @@ describe('Cobra AI generation integration', () => {
     { failures: ['valid first call >= 90%', 'another hard failure'] },
     { failures: ['another hard failure'] },
     { failures: ['valid first call >= 90%', null] },
-  ])('does not relax other quality failures or inconsistent metadata: %j', async ({ summary, failures }) => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(repairedResult(summary, failures))));
-    await expect(getGeneration('test-run')).resolves.toMatchObject({ status: 'failed' });
-    expect(fetch).toHaveBeenCalledTimes(1);
+  ])('validates CSV independently of quality failures or repair summary counts: %j', async ({ summary, failures }) => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(repairedResult(summary, failures))))
+      .mockResolvedValueOnce(new Response(csv([{ ...row, lat: '91' }, row])));
+    const result = await getGeneration('test-run');
+    expect(result.status).toBe('completed');
+    expect(result.reports).toHaveLength(1);
+    expect(result.warnings).toContainEqual(expect.stringContaining('row 1'));
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it('still rejects malformed CSV after allowing fully repaired quality metadata', async () => {
+  it('still rejects malformed CSV after failed quality checks', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(repairedResult())))
-      .mockResolvedValueOnce(new Response(csv([{ ...row, lat: '91' }, row])));
+      .mockResolvedValueOnce(new Response(csv() + '"'));
     await expect(getGeneration('test-run')).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('fails when quality checks failed and no rows pass entity validation', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(repairedResult())))
+      .mockResolvedValueOnce(new Response(csv([{ ...row, lat: '91' }])));
+    await expect(getGeneration('test-run')).rejects.toThrow('no valid reports');
+  });
+
+  it.each([
+    { request: { ...completed.request, scenario: { ...completed.request.scenario, report_count: 0 } } },
+    { request: { ...completed.request, scenario: { ...completed.request.scenario, time_to: 'invalid' } } },
+    { result: { ...completed.result, files: [] } },
+  ])('rejects invalid job metadata or missing CSV before downloading: %j', async (change) => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ ...completed, ...change })));
+    await expect(getGeneration('test-run')).rejects.toMatchObject({ statusCode: 502 });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces failed jobs, unsafe input, expired runs, connection failures, and missing configuration', async () => {

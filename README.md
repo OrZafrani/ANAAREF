@@ -92,16 +92,17 @@ Never put the token in a frontend/Vite environment variable.
   gold orbit, indeterminate progress bar, and stage checklist. The underlying
   workspace stays visible. Detailed model stages/percentages are not provided by
   the API, so the checklist does not simulate completion while the job runs.
-- On completion, the backend normally requires `result.ok` and passing quality checks,
-  immediately downloads `reports.csv`, and converts it with the existing
-  `csv-parse` dependency. One explicit exception permits fully repaired results
-  when `valid first call >= 90%` is the only hard failure, final schema failures
-  are zero, and written/valid/repaired counts account for every requested row.
-  These imports show a review warning and still pass our CSV/entity validation.
-  All other quality failures remain errors. Provider warnings are also displayed.
+- On completion, the backend downloads `reports.csv` and validates each report
+  independently, even if provider quality checks failed (including the first-call
+  90% threshold). Any nonempty valid subset is available for review and saving,
+  even a single report. Quality failures and excluded-row details remain in the
+  API response warnings; the UI banner only says the reports were created successfully.
 - CSV conversion handles quoted commas, embedded newlines, UTF-8/BOM, booleans,
   dates, numeric coordinates and nullable counts. Empty casualty cells remain
-  null; `"0"` becomes zero. Invalid rows/headers/counts fail the entire import.
+  null; `"0"` becomes zero. Invalid rows are excluded with warnings, without
+  changing valid reports or padding the result to the requested count. No valid
+  reports, malformed CSV, invalid headers/job metadata, or more rows than requested
+  still fail the import. Provider jobs with status `failed` remain errors.
   The obsolete upstream `matches` column is excluded from the report entity.
   The API does not supply reliable report-kind labels, so imported reports are
   marked unclassified rather than inventing original/false/duplicate labels.

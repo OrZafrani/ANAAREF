@@ -47,6 +47,14 @@ describe('AI generation and draft contracts', () => {
     expect(reports.every((r) => !/ · \d+$/.test(r.payload.report_title ?? ''))).toBe(true);
   });
 
+  it('accepts a single valid provider report without requiring the requested count', async () => {
+    const reports = makeTestReports(configuredDraft()).slice(0, 1);
+    vi.mocked(api.getAiGeneration).mockResolvedValueOnce({
+      runId: 'test-run', status: 'completed', reports, warnings: ['Only one valid report'],
+    });
+    expect(await generate(configuredDraft())).toEqual(reports);
+  });
+
   it('reorders reports between existing time slots without mutating payloads, including tied slots', async () => {
     const reports = (await generate(configuredDraft())).slice(0, 4);
     reports[2] = { ...reports[2], dispatch_offset_s: reports[1].dispatch_offset_s };
