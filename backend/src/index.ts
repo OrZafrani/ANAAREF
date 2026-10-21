@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { db } from './db.js';
 import { reportPublisher } from './kafka.js';
+import { redis } from './redis.js';
 import { apiErrorHandler } from './lib/validate.js';
 import { categoryRoutes, subCategoryRoutes } from './routes/categoryRoutes.js';
 import { libraryRoutes } from './routes/libraryRoutes.js';
@@ -70,6 +71,7 @@ function getRequestBodyError(error: unknown): { status: number; message: string 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
 const app = express();
+app.set('trust proxy', config.trustProxy);
 app.use(cors());
 app.use('/api/simulations', express.json({ limit: '10mb' }));
 app.use(express.json());
@@ -169,6 +171,7 @@ async function shutdown(signal: string) {
   try {
     await scheduler.shutdown();
     await reportPublisher.disconnect();
+    await redis.quit().catch(() => redis.disconnect());
     await db.end();
   } catch (err) {
     console.error('[shutdown] Error while stopping:', err);

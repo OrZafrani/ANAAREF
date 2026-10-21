@@ -1,12 +1,23 @@
-# Local Kafka for development: one KRaft node (broker and controller in one).
+# Local Kafka and Redis for development. Kafka is one KRaft node (broker and controller in one).
 # PostgreSQL runs on the host.
 #
-#   docker compose up -d        start Kafka and create the reports.enriched topic
-#   docker compose down         stop it (add -v to also delete its data)
+#   docker compose up -d        start Kafka and Redis, and create the reports.enriched topic
+#   docker compose down         stop them (add -v to also delete Kafka's data)
 #
-# The backend connects with KAFKA_BROKERS=localhost:9092.
+# The backend connects with KAFKA_BROKERS=localhost:9092 and REDIS_URL=redis://localhost:6379.
 
 services:
+  # Holds the AI generation rate limit. Its data only matters for a minute, so it isn't persisted.
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   kafka:
     image: apache/kafka:3.9.1
     ports:

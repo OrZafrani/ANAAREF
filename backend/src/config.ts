@@ -15,7 +15,24 @@ function intFromEnv(name: string, fallback: number, min = 0): number {
   return value;
 }
 
+// Express "trust proxy": hop count, true/false, or comma-separated proxy addresses.
+function trustProxyFromEnv(): boolean | number | string {
+  const raw = process.env.TRUST_PROXY?.trim();
+  if (!raw || raw === 'false') return false;
+  if (raw === 'true') return true;
+  return /^\d+$/.test(raw) ? Number(raw) : raw;
+}
+
 export const config = {
+  trustProxy: trustProxyFromEnv(),
+  redis: {
+    url: process.env.REDIS_URL?.trim() || 'redis://localhost:6379',
+  },
+  aiGeneration: {
+    // Generations each client may start per window, across all backend instances.
+    rateLimit: intFromEnv('AI_GENERATION_RATE_LIMIT', 2, 1),
+    rateWindowS: intFromEnv('AI_GENERATION_RATE_WINDOW_S', 60, 1),
+  },
   kafka: {
     brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092')
       .split(',')

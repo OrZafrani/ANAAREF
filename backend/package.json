@@ -13,6 +13,7 @@
     "seed:library": "tsx src/seed/categorySeedLoader.ts",
     "kafka:consume": "tsx src/tools/mockConsumer.ts",
     "kafka:check": "tsx src/tools/kafkaCheck.ts",
+    "redis:check": "tsx src/tools/redisCheck.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "csv-parse": "^7.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "ioredis": "^5.11.1",
     "morgan": "^1.10.0",
     "node-pg-migrate": "^9.0.0",
     "pg": "^8.23.1",
