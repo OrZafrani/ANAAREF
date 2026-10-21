@@ -15,6 +15,7 @@ export default function App() {
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/content-library" element={<LibraryPage />} />
           <Route path="/simulations/new" element={<CreateSimulation />} />
+          <Route path="/simulations/:simulationId/edit/events" element={<SelectEvents />} />
           <Route path="/simulations/events" element={<SelectEvents />} />
           <Route path="/simulations/ai" element={<AiSimulation />} />
         </Routes>

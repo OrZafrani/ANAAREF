@@ -59,6 +59,17 @@ export async function createSimulation(
   });
 }
 
+export async function updateSimulation(
+  id: string,
+  input: CreateSimulationInput,
+): Promise<CreatedSimulation> {
+  return requestJson(`/api/simulations/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
 export async function listSimulations(): Promise<Simulation[]> {
   return requestJson('/api/simulations');
 }

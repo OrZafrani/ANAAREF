@@ -7,13 +7,17 @@ interface SimulationSavedModalProps {
   difficulty: string;
   eventCount: number;
   systemName: string;
+  successTitle?: string;
+  successMessage?: string;
+  createAnotherLabel?: string;
   warning?: string;
   onDashboard: () => void;
   onCreateAnother: () => void;
 }
 
 export default function SimulationSavedModal({
-  title, difficulty, eventCount, systemName, warning, onDashboard, onCreateAnother,
+  title, difficulty, eventCount, systemName, successTitle = 'הסימולציה נשמרה בהצלחה',
+  successMessage, createAnotherLabel = 'יצירת סימולציה נוספת', warning, onDashboard, onCreateAnother,
 }: SimulationSavedModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -50,8 +54,8 @@ export default function SimulationSavedModal({
         role="dialog" aria-modal="true" aria-labelledby="simulation-saved-title" tabIndex={-1}>
         <div className="modal-header">
           <div className="modal-header-text">
-            <h2 id="simulation-saved-title">הסימולציה נשמרה בהצלחה</h2>
-            <p>התרחיש המבצעי הוקם ומוכן להפעלה במערכת {systemName}</p>
+            <h2 id="simulation-saved-title">{successTitle}</h2>
+            <p>{successMessage ?? `התרחיש המבצעי הוקם ומוכן להפעלה במערכת ${systemName}`}</p>
           </div>
           <button type="button" className="modal-close-btn" onClick={onDashboard} aria-label="סגירה וחזרה ללוח הבקרה">
             <CloseIcon size={16} />
@@ -75,7 +79,7 @@ export default function SimulationSavedModal({
           {warning && <p role="alert">{warning}</p>}
         </div>
         <div className="modal-footer" style={{ gap: '0.75rem', justifyContent: 'flex-start' }}>
-          <button type="button" className="modal-cancel-btn" onClick={onCreateAnother}>יצירת סימולציה נוספת</button>
+          <button type="button" className="modal-cancel-btn" onClick={onCreateAnother}>{createAnotherLabel}</button>
           <button type="button" className="top-gold-btn" onClick={onDashboard}>חזרה ללוח הבקרה</button>
         </div>
       </div>

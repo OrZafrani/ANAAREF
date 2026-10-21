@@ -54,18 +54,19 @@ const SIMULATION_SELECT = `
            WHEN 'hard' THEN 'קשה'
            ELSE s.difficulty::text
          END AS difficulty,
+         s.ai_generated AS "aiGenerated",
          CASE s.target_system::text
            WHEN 'specter' THEN 'spectre'
            WHEN 'combat' THEN 'cm'
          END AS sys,
          s.created_at AS "createdAt",
-         s.ai_generated AS "aiGenerated",
          s.length_s AS "lengthSeconds",
          COALESCE(
            jsonb_agg(
              jsonb_build_object(
                'id', ris.report_id::text,
                'title', r.report_title,
+               'reportUrl', r.report_url,
                'category', COALESCE(
                  r.categories[1],
                  substring(r.original_content FROM E'^סיווג: ([^\\n]*)'),
@@ -214,6 +215,65 @@ async function fetchSimulations(query: string, values: unknown[] = []) {
   return rows;
 }
 
+async function saveSimulationEvents(
+  client: PoolClient,
+  simulationId: string,
+  events: SimulationEventInput[],
+  existingReportIds: Set<string> = new Set(),
+): Promise<void> {
+  const { h64 } = await xxhashPromise;
+
+  for (const event of events) {
+    let reportId: string | undefined;
+    if (existingReportIds.has(event.id)) {
+      const { rows } = await client.query(
+        `UPDATE reports
+         SET report_title = $2, categories = ARRAY[$3]::text[], original_content = $4
+         WHERE report_id = $1 AND platform = $5
+         RETURNING report_id`,
+        [event.id, event.title.trim(), event.category, event.description.trim(), REPORT_PLATFORM],
+      );
+      reportId = rows[0]?.report_id?.toString();
+    }
+
+    if (!reportId) {
+      const reportUrl = `https://cobra.invalid/simulations/${simulationId}/events/${encodeURIComponent(event.id)}`;
+      reportId = BigInt.asIntN(
+        64,
+        h64(`${REALITY_ID}${REPORT_PLATFORM}${reportUrl}`),
+      ).toString();
+      const reportResult = await client.query(
+        `INSERT INTO reports (
+           report_id, reality_id, schema_version, is_official, platform, report_url,
+           report_title, original_language, categories, collected_at, original_content
+         )
+         VALUES ($1, $2, 2, false, $3, $4, $5, 'he', ARRAY[$7]::text[], now() AT TIME ZONE 'utc', $6)
+         ON CONFLICT (reality_id, platform, report_url) DO UPDATE
+         SET report_title = EXCLUDED.report_title,
+             categories = EXCLUDED.categories,
+             original_content = EXCLUDED.original_content
+         RETURNING report_id`,
+        [
+          reportId,
+          REALITY_ID,
+          REPORT_PLATFORM,
+          reportUrl,
+          event.title.trim(),
+          event.description.trim(),
+          event.category,
+        ],
+      );
+      reportId = reportResult.rows[0].report_id.toString();
+    }
+
+    await client.query(
+      `INSERT INTO report_in_simulation (simulation_id, report_id, dispatch_offset_s)
+       VALUES ($1, $2, $3)`,
+      [simulationId, reportId, event.minute * 60],
+    );
+  }
+}
+
 export async function listSimulations() {
   return fetchSimulations('');
 }
@@ -234,7 +294,6 @@ export async function createSimulation(value: unknown) {
 
   try {
     client = await db.connect();
-    const { h64 } = await xxhashPromise;
     await client.query('BEGIN');
     transactionStarted = true;
 
@@ -255,6 +314,7 @@ export async function createSimulation(value: unknown) {
 
     const aiReports = input.aiReports ?? [];
     const columns = [...Object.keys(reportFields), 'media_type', 'categories'];
+    const { h64 } = await xxhashPromise;
     for (let start = 0; start < aiReports.length; start += AI_REPORT_BATCH_SIZE) {
       const reportValues: unknown[] = [];
       const linkValues: unknown[] = [];
@@ -285,36 +345,7 @@ export async function createSimulation(value: unknown) {
       );
     }
 
-    for (const event of input.events) {
-      const reportUrl = `https://cobra.invalid/simulations/${simulation.id}/events/${encodeURIComponent(event.id)}`;
-      const reportId = BigInt.asIntN(
-        64,
-        h64(`${REALITY_ID}${REPORT_PLATFORM}${reportUrl}`),
-      ).toString();
-      const reportResult = await client.query(
-        `INSERT INTO reports (
-           report_id, reality_id, schema_version, is_official, platform, report_url,
-           report_title, original_language, categories, collected_at, original_content
-         )
-         VALUES ($1, $2, 2, false, $3, $4, $5, 'he', ARRAY[$7]::text[], now() AT TIME ZONE 'utc', $6)
-         RETURNING report_id`,
-        [
-          reportId,
-          REALITY_ID,
-          REPORT_PLATFORM,
-          reportUrl,
-          event.title.trim(),
-          event.description.trim(),
-          event.category,
-        ],
-      );
-
-      await client.query(
-        `INSERT INTO report_in_simulation (simulation_id, report_id, dispatch_offset_s)
-         VALUES ($1, $2, $3)`,
-        [simulation.id, reportResult.rows[0].report_id, event.minute * 60],
-      );
-    }
+    await saveSimulationEvents(client, simulation.id, input.events);
 
     await client.query('COMMIT');
     transactionStarted = false;
@@ -326,6 +357,66 @@ export async function createSimulation(value: unknown) {
       } catch (rollbackError) {
         console.error('Failed to roll back simulation creation:', rollbackError);
       }
+    }
+    throw error;
+  } finally {
+    client?.release();
+  }
+}
+
+export async function updateSimulation(id: string, value: unknown) {
+  if (!UUID_PATTERN.test(id)) throw new ApiError('Simulation not found.', 404);
+
+  const input = validateCreateInput(value);
+  const settings = DIFFICULTY_SETTINGS[input.difficulty];
+  let client: PoolClient | undefined;
+  let transactionStarted = false;
+
+  try {
+    client = await db.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    const { rows } = await client.query(
+      `UPDATE simulations
+       SET name = $2, description = $3, difficulty = $4, length_s = $5, target_system = $6
+       WHERE id = $1
+       RETURNING id, created_at AS "createdAt"`,
+      [
+        id,
+        input.title,
+        input.description,
+        settings.databaseValue,
+        settings.lengthSeconds,
+        input.sys === 'cm' ? 'combat' : 'specter',
+      ],
+    );
+    if (rows.length === 0) throw new ApiError('Simulation not found.', 404);
+
+    const existingEvents = await client.query<{ id: string }>(
+      `SELECT ris.report_id::text AS id
+       FROM report_in_simulation ris
+       JOIN reports r ON r.report_id = ris.report_id
+       WHERE ris.simulation_id = $1 AND r.platform = $2`,
+      [id, REPORT_PLATFORM],
+    );
+    const existingReportIds = new Set(existingEvents.rows.map((event) => event.id));
+    await client.query('DELETE FROM report_in_simulation WHERE simulation_id = $1', [id]);
+    await saveSimulationEvents(client, id, input.events, existingReportIds);
+
+    await client.query('COMMIT');
+    transactionStarted = false;
+    return { ...rows[0], eventCount: input.events.length };
+  } catch (error) {
+    if (client && transactionStarted) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Failed to roll back simulation update:', rollbackError);
+      }
+    }
+    if ((error as { code?: string }).code === '55006') {
+      throw new ApiError('Stop the simulation before editing its events.', 409);
     }
     throw error;
   } finally {

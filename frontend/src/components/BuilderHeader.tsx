@@ -12,6 +12,8 @@ interface BuilderHeaderProps {
   onSave?: () => void;
   onSaveDraft?: () => void;
   isSaved?: boolean;
+  isEditing?: boolean;
+  saveLabel?: string;
   breadcrumb?: string;
   stepLabels?: readonly [string, string, string];
   disabled?: boolean;
@@ -27,7 +29,9 @@ export default function BuilderHeader({
   onSave,
   onSaveDraft,
   isSaved = true,
-  breadcrumb = 'בונה ידני · סימולציה חדשה',
+  isEditing = false,
+  saveLabel = 'שמירה',
+  breadcrumb,
   stepLabels = ['פרטים והגדרות', 'תוכן', 'סקירה ושמירה'],
   disabled = false,
   availableStep = 3,
@@ -72,7 +76,9 @@ export default function BuilderHeader({
               </button>
 
               <div className="title-section">
-                <span className="sub-title-breadcrumb">{breadcrumb}</span>
+                <span className="sub-title-breadcrumb">
+                  {breadcrumb ?? (isEditing ? 'בונה ידני · עריכת סימולציה' : 'בונה ידני · סימולציה חדשה')}
+                </span>
                 <h1 className="main-title">{title.trim() ? title : 'סימולציה ללא שם'}</h1>
               </div>
             </div>
@@ -110,7 +116,7 @@ export default function BuilderHeader({
                 onClick={onSave}
                 disabled={disabled}
               >
-                שמירה
+                {saveLabel}
               </button>
             </div>}
           </div>

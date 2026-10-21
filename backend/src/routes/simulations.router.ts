@@ -10,6 +10,7 @@ const asyncHandler = (handler: RequestHandler): RequestHandler => (req, res, nex
 router.get('/', asyncHandler(simulationsController.listSimulations));
 router.get('/:id', asyncHandler(simulationsController.getSimulation));
 router.post('/', asyncHandler(simulationsController.createSimulation));
+router.put('/:id', asyncHandler(simulationsController.updateSimulation));
 router.delete('/:id', asyncHandler(simulationsController.deleteSimulation));
 
 

@@ -172,6 +172,17 @@
   transition: border-color .15s, background-color .15s, transform .15s cubic-bezier(.23, 1, .32, 1);
 }
 
+.sim-creation-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+
 .sim-card:hover {
   border-color: var(--line-3);
   background: var(--surface-2);
@@ -276,14 +287,47 @@
   position: relative;
   z-index: 1;
   display: flex;
+  direction: ltr;
   align-items: center;
   gap: 4px;
+}
+
+.icon-btn.edit-sim-btn {
+  display: inline-flex;
+  width: auto;
+  min-height: 34px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  color: var(--ok);
+  gap: 5px;
+  padding-inline: 9px;
+}
+
+.edit-sim-btn:hover:not(:disabled) {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
 }
 
 .delete-sim-btn:hover:not(:disabled) {
   color: var(--danger);
   background: var(--danger-soft);
   border-color: transparent;
+}
+
+.delete-confirm-modal .modal-header {
+  padding-bottom: 0;
+}
+
+.delete-confirm-modal .modal-header-text p {
+  margin-bottom: 0;
+}
+
+.delete-confirm-modal .modal-footer {
+  justify-content: flex-start;
 }
 
 /* Empty state */

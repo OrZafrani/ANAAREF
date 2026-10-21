@@ -1,11 +1,73 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
 import CreateSimulation from './pages/CreateSimulation';
 import SelectEvents from './pages/SelectEvents';
+import AiReportReview from './components/ai/AiReportReview';
 import { getUrgency } from './lib/urgency';
+
+function CurrentPath() {
+  const location = useLocation();
+  return <output data-testid="current-path">{location.pathname}</output>;
+}
+
+describe('Manual event details', () => {
+  it('opens the shared AI details drawer and supports minute editing and removal', () => {
+    const onRemove = vi.fn();
+    const onMinuteChange = vi.fn();
+    render(
+      <AiReportReview
+        manualEvents={[{
+          id: 'manual-event-1',
+          title: 'תרגיל חירום',
+          category: 'התרעה',
+          categoryName: 'תפעול',
+          city: 'באר שבע',
+          country: 'ישראל',
+          threatLevel: 70,
+          minute: 4,
+          description: 'זוהתה פעילות חריגה באזור.',
+        }]}
+        duration={30}
+        difficulty="בינוני"
+        activeEventId={null}
+        onUpdate={(id, changes) => onMinuteChange(id, changes.minute)}
+        onRemove={onRemove}
+        onLibrary={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+
+    const card = document.getElementById('selected-event-manual-event-1')!;
+    expect(card).toHaveTextContent('ללא סיווג');
+    expect(card).toHaveTextContent('T+04:00');
+    expect(card).toHaveTextContent('באר שבע');
+    expect(card).toHaveTextContent('כוחותינו: לא ידוע');
+    expect(card).toHaveTextContent('אויב: לא ידוע');
+    expect(within(card).getByRole('button', { name: 'עריכת דיווח: תרגיל חירום' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'פרטים: תרגיל חירום' }));
+    const detailsDialog = screen.getByRole('dialog', { name: 'תרגיל חירום' });
+    expect(detailsDialog).toBeInTheDocument();
+    expect(within(detailsDialog).getByText('זמן קליטה')).toBeInTheDocument();
+    expect(detailsDialog.querySelector('.ai-offset')).toHaveTextContent('04:00');
+
+    fireEvent.click(within(detailsDialog).getByRole('button', { name: 'עריכה' }));
+    const editor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    expect(within(editor).getByLabelText('תוכן הדיווח')).toHaveValue('זוהתה פעילות חריגה באזור.');
+    fireEvent.change(within(editor).getByLabelText('דקות'), { target: { value: '5' } });
+    fireEvent.click(within(editor).getByRole('button', { name: 'שמירת שינויים' }));
+    expect(onMinuteChange).toHaveBeenCalledWith('manual-event-1', 5);
+    expect(onRemove).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'פרטים: תרגיל חירום' }));
+    fireEvent.click(screen.getByRole('button', { name: 'הסרה מהסימולציה' }));
+    expect(onRemove).toHaveBeenCalledWith('manual-event-1');
+    expect(screen.queryByRole('dialog', { name: 'תרגיל חירום' })).not.toBeInTheDocument();
+  });
+});
 
 describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
@@ -91,8 +153,6 @@ describe('Simulation Flow - Mockup Alignment', () => {
       return Promise.resolve(new Response(null, { status: 204 }));
     });
     global.fetch = fetchMock;
-    vi.stubGlobal('confirm', vi.fn(() => true));
-
     render(
       <MemoryRouter>
         <Home />
@@ -101,6 +161,20 @@ describe('Simulation Flow - Mockup Alignment', () => {
 
     expect(await screen.findByText('תרגיל מהשרת')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /מחיקת הסימולציה תרגיל מהשרת/i }));
+    expect(screen.getByRole('alertdialog', { name: 'מחיקת סימולציה' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/simulations/saved-simulation-id',
+      { method: 'DELETE' },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/simulations/saved-simulation-id',
+      { method: 'DELETE' },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /מחיקת הסימולציה תרגיל מהשרת/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'מחיקה' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/simulations/saved-simulation-id',
@@ -274,25 +348,91 @@ describe('Simulation Flow - Mockup Alignment', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /התראות/ }));
     expect(screen.queryByText('דיווח כללי')).not.toBeInTheDocument();
-    expect(screen.getByText(/דקה בסימולציה: 23/)).toBeInTheDocument();
+    expect(screen.getByText(/דקה בסימולציה: 2/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
 
     // Check count and selection state
-    expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
-    expect(screen.getByText('דקה 23')).toBeInTheDocument();
     expect(screen.getAllByText('דחיפות: קריטי')).toHaveLength(2);
     const reportCheckbox = screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ });
     expect(reportCheckbox).toBeChecked();
+    const selectedReview = screen.getByRole('region', { name: /דיווחים בסימולציה/ });
+    expect(selectedReview).toHaveClass('ai-builder', 'ai-reports-panel');
+    expect(selectedReview.closest('.content-step-card')).toBeNull();
+    expect(within(selectedReview).getByRole('group', { name: 'סינון לפי סוג דיווח' })).toBeInTheDocument();
     fireEvent.click(reportCheckbox);
     expect(screen.getByRole('checkbox', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ })).not.toBeChecked();
     fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
     expect(screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: /סיום והמשך/i }));
+    const selectedLibraryCard = document.getElementById('selected-event-report-1');
+    expect(selectedLibraryCard).toHaveTextContent('T+02:00');
+    fireEvent.click(within(selectedLibraryCard!).getByRole('button', { name: 'עריכת דיווח: דיווח מספריית התוכן' }));
+    const libraryEditor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    fireEvent.change(within(libraryEditor).getByLabelText('דקות'), { target: { value: '6' } });
+    fireEvent.click(within(libraryEditor).getByRole('button', { name: 'שמירת שינויים' }));
+    expect(selectedLibraryCard).toHaveTextContent('T+06:00');
+
+    const timelineTrack = document.querySelector('.event-timeline-track');
+    expect(timelineTrack).not.toBeNull();
+    Object.defineProperty(timelineTrack, 'getBoundingClientRect', {
+      value: () => ({ left: 0, right: 100, width: 100, top: 0, bottom: 40, height: 40, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'סגור חלון' }));
+    fireEvent.click(timelineTrack!, { clientX: 78 });
+    expect(screen.getByText('בחרו דיווח להוספה בדקה 10')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /כל הדיווחים/ }));
+    expect(screen.getByText(/דקה בסימולציה: 4/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('תוכן נוסף'));
+
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
     expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
+    const selectedGeneralCard = document.getElementById('selected-event-report-2');
+    expect(selectedLibraryCard).toHaveTextContent('T+06:00');
+    expect(selectedGeneralCard).toHaveTextContent('T+10:00');
+    const timelineElement = screen.getByRole('list', { name: 'אירועים לפי זמן בסימולציה' });
+    const timeline = within(timelineElement);
+    const timelineEvents = timeline.getAllByRole('listitem');
+    expect(timelineEvents).toHaveLength(2);
+    expect(within(timelineEvents[0]).getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' })).toHaveClass('urgency-critical');
+    expect(within(timelineEvents[1]).getByRole('button', { name: 'מעבר לאירוע דיווח כללי, דקה 10' })).toBeInTheDocument();
+    expect(timelineEvents[0]).toHaveStyle({ right: `${(6 / 45) * 100}%` });
+    expect(timelineEvents[1]).toHaveStyle({ right: `${(10 / 45) * 100}%` });
+    expect(timelineEvents[0].textContent).toBe('');
+    expect(timelineEvents[1].textContent).toBe('');
+    const timelineSection = within(screen.getByRole('region', { name: 'ציר זמן של אירועי הסימולציה' }));
+    const timeTicks = timelineSection.getAllByText(/^\d+$/);
+    expect(timeTicks.map((tick) => tick.textContent)).toEqual(['6', '10']);
+    expect(timeTicks[0]).toHaveStyle({ right: `${(6 / 45) * 100}%` });
+    expect(timeTicks[1]).toHaveStyle({ right: `${(10 / 45) * 100}%` });
+    const selectedReportRow = document.getElementById('selected-event-report-1');
+    const scrollIntoView = vi.fn();
+    expect(selectedReportRow).not.toBeNull();
+    Object.defineProperty(selectedReportRow, 'scrollIntoView', { value: scrollIntoView });
+    fireEvent.click(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' })).toHaveAttribute('aria-pressed', 'true');
+    expect(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח כללי, דקה 10' })).toHaveAttribute('aria-pressed', 'false');
+    expect(selectedReportRow).toHaveClass('ai-report-active');
+    expect(selectedReportRow).toHaveTextContent('T+06:00');
+    const otherEventRows = Array.from(document.querySelectorAll('.ai-report-card'))
+      .filter((row) => row !== selectedReportRow);
+    expect(otherEventRows.every((row) => !row.classList.contains('ai-report-active'))).toBe(true);
+    const secondEventRow = document.getElementById('selected-event-report-2');
+    expect(secondEventRow).not.toBeNull();
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    fireEvent.dragStart(
+      within(selectedReportRow!).getByRole('button', { name: /^הזזת דיווח:/ }),
+      { dataTransfer },
+    );
+    fireEvent.dragOver(secondEventRow!, { dataTransfer });
+    expect(secondEventRow).toHaveClass('ai-report-drop-target');
+    fireEvent.drop(secondEventRow!, { dataTransfer });
+    expect(selectedLibraryCard).toHaveTextContent('T+10:00');
+    expect(selectedGeneralCard).toHaveTextContent('T+06:00');
 
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
-    expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
+    expect(screen.getAllByText('דחיפות: קריטי').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('spinbutton')).toHaveLength(2);
   });
   it('saves a simulation and selected events through the API', async () => {
     const createdAt = '2026-10-19T10:00:00.000Z';
@@ -335,6 +475,13 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(await screen.findByText(/דיווחים זמינים מספריית התוכן/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     fireEvent.click(await screen.findByRole('checkbox', { name: /הוסף לסימולציה:/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת דיווח: זיהוי תנועה חשודה בגדר המערכת' }));
+    const reportEditor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    fireEvent.change(
+      within(reportEditor).getByLabelText('דקות'),
+      { target: { value: '7' } },
+    );
+    fireEvent.click(within(reportEditor).getByRole('button', { name: 'שמירת שינויים' }));
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
     fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
 
@@ -351,6 +498,7 @@ describe('Simulation Flow - Mockup Alignment', () => {
     const requestBody = JSON.parse(String(postCall?.[1]?.body));
     expect(requestBody.events).toHaveLength(1);
     expect(requestBody.events[0].title).toBe('זיהוי תנועה חשודה בגדר המערכת');
+    expect(requestBody.events[0].minute).toBe(7);
     expect(requestBody.sys).toBe('spectre');
     expect(localStorage.getItem('cobra_simulations')).toBeNull();
   });
@@ -375,12 +523,127 @@ describe('Simulation Flow - Mockup Alignment', () => {
     // SPECTRE is the default system; older saves without sys count as SPECTRE
     expect(await screen.findByText('מטח פתיחה')).toBeInTheDocument();
     expect(screen.getByText('תרגול בסיסי')).toBeInTheDocument();
+    expect(screen.getAllByText('נוצרה ידנית')).toHaveLength(2);
     expect(screen.queryByText('אירוע ניהול לחימה')).not.toBeInTheDocument();
     expect(await screen.findByText('מוצגות 2 מתוך 2')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'קל' }));
     await waitFor(() => expect(screen.queryByText('מטח פתיחה')).not.toBeInTheDocument());
     expect(screen.getByText('מוצגות 1 מתוך 2')).toBeInTheDocument();
+  });
+
+  it('navigates from a saved simulation card to its content editor', async () => {
+    const savedSimulation = {
+      id: 'simulation-1',
+      title: 'מטח פתיחה',
+      description: '',
+      difficulty: 'קשה',
+      events: [],
+      createdAt: '2026-10-19T10:00:00.000Z',
+    };
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => Promise.resolve(
+      new Response(JSON.stringify(String(input).includes('/api/simulations') ? [savedSimulation] : []), { status: 200 }),
+    )));
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<><CurrentPath /><Home /></>} />
+          <Route path="/simulations/:simulationId/edit/events" element={<CurrentPath />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'עריכת הסימולציה מטח פתיחה' }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/simulations/simulation-1/edit/events');
+  });
+
+  it('labels saved simulations according to their AI generation flag', async () => {
+    const base = { description: '', difficulty: 'בינוני', events: [], createdAt: '2026-10-19T10:00:00.000Z' };
+    const savedSimulations = [
+      { ...base, id: 'manual', title: 'תרגול ידני', aiGenerated: false },
+      { ...base, id: 'ai', title: 'תרגול AI', aiGenerated: true },
+    ];
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => Promise.resolve(
+      new Response(JSON.stringify(String(input).includes('/api/simulations') ? savedSimulations : []), { status: 200 }),
+    )));
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('תרגול ידני')).toBeInTheDocument();
+    expect(screen.getByText('נוצרה ידנית')).toBeInTheDocument();
+    expect(screen.getByText('תרגול AI')).toBeInTheDocument();
+    expect(screen.getByText('נוצרה באמצעות AI')).toBeInTheDocument();
+  });
+
+  it('loads a saved simulation in the content editor and updates it', async () => {
+    const simulationId = '123e4567-e89b-12d3-a456-426614174000';
+    const savedSimulation = {
+      id: simulationId,
+      title: 'מטח פתיחה',
+      description: 'תרגול תגובה מהירה',
+      difficulty: 'קשה',
+      sys: 'spectre',
+      events: [{
+        id: '12345',
+        title: 'זיהוי רחפן',
+        category: 'מבצעי',
+        minute: 8,
+        description: 'כלי טיס זעיר',
+        reportUrl: 'https://cobra.invalid/simulations/old/events/12345',
+      }],
+      createdAt: '2026-10-19T10:00:00.000Z',
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/simulations/${simulationId}` && init?.method === 'PUT') {
+        return Promise.resolve(new Response(JSON.stringify({ id: simulationId }), { status: 200 }));
+      }
+      if (url === `/api/simulations/${simulationId}`) {
+        return Promise.resolve(new Response(JSON.stringify(savedSimulation), { status: 200 }));
+      }
+      return Promise.resolve(new Response('[]', { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <MemoryRouter initialEntries={[`/simulations/${simulationId}/edit/events`]}>
+        <Routes>
+          <Route path="/simulations/:simulationId/edit/events" element={<SelectEvents />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('בונה ידני · עריכת סימולציה')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'מטח פתיחה' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת דיווח: זיהוי רחפן' }));
+    const reportEditor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    expect(within(reportEditor).getByLabelText('דקות')).toHaveValue(8);
+    fireEvent.change(within(reportEditor).getByLabelText('דקות'), { target: { value: '9' } });
+    fireEvent.click(within(reportEditor).getByRole('button', { name: 'שמירת שינויים' }));
+    fireEvent.click(screen.getByRole('button', { name: 'המשך לסקירה' }));
+    expect(screen.getByRole('heading', { name: 'רשימת אירועי התרחיש (1):' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      `/api/simulations/${simulationId}`,
+      expect.objectContaining({ method: 'PUT' }),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/simulations',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'שמירה ואישור' }));
+
+    expect(await screen.findByRole('heading', { name: 'הסימולציה עודכנה בהצלחה' })).toBeInTheDocument();
+    const updateCall = fetchMock.mock.calls.find((call) => call[1]?.method === 'PUT');
+    expect(updateCall?.[1]?.body).toBeDefined();
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === 'POST')).toBe(false);
+    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
+    expect(updateBody.title).toBe('מטח פתיחה');
+    expect(updateBody.events[0]).toMatchObject({ id: '12345', minute: 9 });
   });
 
   it('opens the simulation summary drawer from a card', async () => {

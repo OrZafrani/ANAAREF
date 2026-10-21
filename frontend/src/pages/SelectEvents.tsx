@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
+import SimulationTimeline from '../components/SimulationTimeline';
 import SimulationSavedModal from '../components/SimulationSavedModal';
+import AiReportReview from '../components/ai/AiReportReview';
 import { SimulationFormData, SimulationEvent } from '../types/simulation';
-import { createSimulation } from '../lib/api';
+import { createSimulation, getSimulation, updateSimulation } from '../lib/api';
 import { getCategoryTree, getTemplates, type CategoryNode, type LibraryTemplate } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
+import './AiSimulation.css';
 import { getUrgency } from '../lib/urgency';
 import {
   CheckIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   ContentLibraryIcon,
-  LayersIcon,
   PlusIcon,
 } from '../components/Icons';
 import './SelectEvents.css';
@@ -28,12 +30,79 @@ function simDurationCap(difficulty: string): number {
   return DIFFICULTY_DURATION_MAP[difficulty] ?? 30;
 }
 
+function nextLibraryMinute(events: SimulationEvent[], duration: number): number | null {
+  const libraryEvents = events.filter((event) => event.reportUrl);
+  const occupiedMinutes = new Set(libraryEvents.map((event) => event.minute));
+  for (let minute = (libraryEvents.length + 1) * 2; minute <= duration; minute += 2) {
+    if (!occupiedMinutes.has(minute)) return minute;
+  }
+  return null;
+}
+
+function SelectedEventRow({
+  event,
+  index,
+  duration,
+  isActive,
+  onMinuteChange,
+  onRemove,
+}: {
+  event: SimulationEvent;
+  index: number;
+  duration: number;
+  isActive: boolean;
+  onMinuteChange: (id: string, minute: number) => void;
+  onRemove?: (id: string) => void;
+}) {
+  return (
+    <div
+      className={`selected-item-row${isActive ? ' is-active' : ''}`}
+      id={`selected-event-${event.id}`}
+      tabIndex={-1}
+    >
+      <span className="selected-seq">{index + 1}</span>
+      <div className="selected-text">
+        <h5 className="selected-text-title">{event.title}</h5>
+        <div className="selected-text-sub">
+          <span>קטגוריה: {event.categoryName ?? event.category}{event.subCategory ? ` · ${event.subCategory}` : ''}</span>
+          <span>•</span>
+          <label className="selected-minute-control">
+            דקה בסימולציה:
+            <input
+              type="number"
+              min="1"
+              max={duration}
+              step="1"
+              value={event.minute}
+              aria-label={`דקת סימולציה עבור ${event.title}`}
+              onChange={(changeEvent) => onMinuteChange(event.id, Number(changeEvent.currentTarget.value))}
+            />
+          </label>
+          <span>•</span>
+          <span>דחיפות: {getUrgency(event.threatLevel).label}</span>
+        </div>
+      </div>
+      {onRemove && (
+        <button
+          type="button"
+          className="btn-remove-item"
+          onClick={() => onRemove(event.id)}
+          title="הסר אירוע מהסימולציה"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SelectEvents() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { simulationId } = useParams<{ simulationId: string }>();
   const { sys } = useAppSettings();
 
-  const [simData] = useState<SimulationFormData>(() => {
+  const [simData, setSimData] = useState<SimulationFormData>(() => {
     const passed = location.state as SimulationFormData | undefined;
     if (passed && passed.title) {
       return passed;
@@ -63,7 +132,38 @@ export default function SelectEvents() {
   const [libraryCategoryId, setLibraryCategoryId] = useState<string>('');
   const [librarySubCategoryId, setLibrarySubCategoryId] = useState<string>('');
   const [selectedEvents, setSelectedEvents] = useState<SimulationEvent[]>([]);
+  const [activeTimelineEventId, setActiveTimelineEventId] = useState<string | null>(null);
+  const [pendingTimelineMinute, setPendingTimelineMinute] = useState<number | null>(null);
+  const [selectionError, setSelectionError] = useState('');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isLoadingSimulation, setIsLoadingSimulation] = useState(Boolean(simulationId));
+  const [simulationLoadError, setSimulationLoadError] = useState('');
+  const [editSystem, setEditSystem] = useState<'spectre' | 'cm'>(sys);
+
+  useEffect(() => {
+    if (!simulationId) return;
+    let active = true;
+    setIsLoadingSimulation(true);
+    getSimulation(simulationId)
+      .then((simulation) => {
+        if (!active) return;
+        setSimData({
+          title: simulation.title,
+          description: simulation.description ?? '',
+          difficulty: simulation.difficulty,
+        });
+        setSelectedEvents(simulation.events);
+        setEditSystem(simulation.sys ?? 'spectre');
+        setSimulationLoadError('');
+      })
+      .catch((error: unknown) => {
+        if (active) setSimulationLoadError(error instanceof Error ? error.message : 'טעינת הסימולציה נכשלה');
+      })
+      .finally(() => {
+        if (active) setIsLoadingSimulation(false);
+      });
+    return () => { active = false; };
+  }, [simulationId]);
 
   const subCategories = useMemo(() => {
     if (!libraryCategoryId) return [];
@@ -84,27 +184,30 @@ export default function SelectEvents() {
   };
 
   // DB-driven library: every template in ספריית התוכן is a candidate event.
-  // minute defaults to an even spread across the simulation duration.
   const availableEvents: SimulationEvent[] = useMemo(() => {
     const cap = simDurationCap(simData.difficulty);
-    const count = Math.max(templates.length, 1);
-    return templates.map((template, index) => ({
-      id: template.id,
-      title: template.report_title || 'תבנית ללא כותרת',
-      category: toEventCategory(template),
-      categoryName: template.category_name ?? undefined,
-      categoryId: template.category_id,
-      subCategory: template.sub_category_name ?? undefined,
-      subCategoryId: template.sub_category_id,
-      reportUrl: template.report_url,
-      city: template.city,
-      country: template.country,
-      threatLevel: template.threat_level,
-      minute: Math.min(Math.max(Math.round(((index + 1) / count) * cap) || 1, 1), cap),
-      description: template.original_content?.slice(0, 500) || template.report_title || 'דיווח מספריית התוכן.',
-    }));
+    const nextMinute = nextLibraryMinute(selectedEvents, cap);
+    return templates.map((template) => {
+      const selectedEvent = selectedEvents.find((event) => event.id === template.id);
+      return {
+        id: template.id,
+        title: template.report_title || 'תבנית ללא כותרת',
+        category: toEventCategory(template),
+        categoryName: template.category_name ?? undefined,
+        categoryId: template.category_id,
+        subCategory: template.sub_category_name ?? undefined,
+        subCategoryId: template.sub_category_id,
+        reportUrl: template.report_url,
+        matches: template.matches ?? undefined,
+        city: template.city,
+        country: template.country,
+        threatLevel: template.threat_level,
+        minute: selectedEvent?.minute ?? nextMinute ?? cap,
+        description: template.original_content?.slice(0, 500) || template.report_title || 'דיווח מספריית התוכן.',
+      };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, simData.difficulty]);
+  }, [templates, selectedEvents, simData.difficulty]);
 
   // Load category tree once for the filter dropdowns.
   useEffect(() => {
@@ -156,26 +259,106 @@ export default function SelectEvents() {
   const handleToggleEvent = (event: SimulationEvent) => {
     if (selectedIds.has(event.id)) {
       setSelectedEvents(selectedEvents.filter((e) => e.id !== event.id));
+      setSelectionError('');
     } else {
-      setSelectedEvents([...selectedEvents, event]);
+      const minute = pendingTimelineMinute ?? (event.reportUrl ? nextLibraryMinute(selectedEvents, simDuration) : event.minute);
+      if (minute === null) {
+        setSelectionError(`לא ניתן להוסיף דיווח נוסף: משך הסימולציה מאפשר עד ${Math.floor(simDuration / 2)} דיווחים במרווחים של שתי דקות.`);
+        return;
+      }
+      if (pendingTimelineMinute !== null && selectedEvents.some((selectedEvent) => selectedEvent.minute === minute)) {
+        setSelectionError(`כבר קיים אירוע בדקה ${minute}. לחצו על מקום פנוי אחר בציר הזמן.`);
+        return;
+      }
+      setSelectedEvents([...selectedEvents, { ...event, minute }]);
+      setSelectionError('');
+      if (pendingTimelineMinute !== null) {
+        setActiveTimelineEventId(event.id);
+        setPendingTimelineMinute(null);
+        setIsLibraryOpen(false);
+      }
     }
   };
 
   const handleRemoveSelected = (id: string) => {
     setSelectedEvents(selectedEvents.filter((e) => e.id !== id));
+    setSelectionError('');
   };
 
   const handleAddCustomEvent = (newEvent: SimulationEvent) => {
-    setSelectedEvents([...selectedEvents, newEvent]);
+    const event = pendingTimelineMinute === null
+      ? newEvent
+      : { ...newEvent, minute: pendingTimelineMinute };
+    setSelectedEvents([...selectedEvents, event]);
+    setSelectionError('');
+    if (pendingTimelineMinute !== null) {
+      setActiveTimelineEventId(event.id);
+      setPendingTimelineMinute(null);
+      setIsLibraryOpen(false);
+    }
   };
 
   const handleAddAllFromLibrary = () => {
     const existing = new Set(selectedEvents.map((e) => e.id));
     const missing = availableEvents.filter((e) => !existing.has(e.id));
-    if (missing.length > 0) setSelectedEvents([...selectedEvents, ...missing]);
+    const addedEvents: SimulationEvent[] = [];
+    for (const event of missing) {
+      const minute = nextLibraryMinute([...selectedEvents, ...addedEvents], simDuration);
+      if (minute === null) break;
+      addedEvents.push({ ...event, minute });
+    }
+    if (addedEvents.length > 0) {
+      setSelectedEvents([...selectedEvents, ...addedEvents]);
+    }
+    setSelectionError(addedEvents.length < missing.length
+      ? `לא ניתן להוסיף את כל הדיווחים. נוספו ${addedEvents.length} מתוך ${missing.length}; משך הסימולציה מאפשר עד ${Math.floor(simDuration / 2)} דיווחים במרווחים של שתי דקות.`
+      : '');
+  };
+
+  const handleMinuteChange = (id: string, minute: number) => {
+    if (!Number.isInteger(minute) || minute < 1 || minute > simDuration) return;
+    setSelectedEvents(selectedEvents.map((event) => event.id === id ? { ...event, minute } : event));
+  };
+
+  const handleUpdateSelectedEvent = (
+    id: string,
+    changes: Pick<SimulationEvent, 'title' | 'description' | 'city' | 'threatLevel' | 'minute'>,
+  ) => {
+    if (!Number.isInteger(changes.minute) || changes.minute < 1 || changes.minute > simDuration) return;
+    setSelectedEvents((events) => events.map((event) => event.id === id ? { ...event, ...changes } : event));
+  };
+
+  const handleReorderSelectedEvents = (sourceId: string, targetId: string) => {
+    setSelectedEvents((currentEvents) => {
+      const ordered = [...currentEvents].sort((first, second) => first.minute - second.minute);
+      const sourceIndex = ordered.findIndex((event) => event.id === sourceId);
+      const targetIndex = ordered.findIndex((event) => event.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return currentEvents;
+      const timeSlots = ordered.map((event) => event.minute);
+      const [moved] = ordered.splice(sourceIndex, 1);
+      ordered.splice(targetIndex, 0, moved);
+      const newTimes = new Map(ordered.map((event, index) => [event.id, timeSlots[index]]));
+      return currentEvents.map((event) => ({ ...event, minute: newTimes.get(event.id) ?? event.minute }));
+    });
+  };
+
+  const handleTimelineEventClick = (id: string) => {
+    setActiveTimelineEventId(id);
+    document.getElementById(`selected-event-${id}`)?.scrollIntoView?.({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  };
+
+  const handleEmptyTimelineClick = (minute: number) => {
+    if (selectedEvents.some((selectedEvent) => selectedEvent.minute === minute)) return;
+    setPendingTimelineMinute(minute);
+    setSelectionError('');
+    setIsLibraryOpen(true);
   };
 
   const handleSaveSimulation = async () => {
+    if (isLoadingSimulation || simulationLoadError) return;
     if (selectedEvents.length === 0) {
       alert('נא לבחור לפחות אירוע אחד לסימולציה');
       return;
@@ -184,8 +367,13 @@ export default function SelectEvents() {
     setIsSaving(true);
     setSaveError('');
     try {
-      await createSimulation({ ...simData, sys, events: selectedEvents });
-      sessionStorage.removeItem('cobra_sim_draft');
+      const input = { ...simData, sys: simulationId ? editSystem : sys, events: selectedEvents };
+      if (simulationId) {
+        await updateSimulation(simulationId, input);
+      } else {
+        await createSimulation(input);
+        sessionStorage.removeItem('cobra_sim_draft');
+      }
       setIsSavedSuccess(true);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Unable to save simulation.');
@@ -199,6 +387,8 @@ export default function SelectEvents() {
       <BuilderHeader
         title={simData.title}
         currentStep={currentStep}
+        isEditing={Boolean(simulationId)}
+        saveLabel={simulationId && currentStep === 2 ? 'המשך לסקירה' : 'שמירה'}
         onStepClick={(step) => {
           if (step === 1) {
             navigate('/simulations/new');
@@ -218,14 +408,18 @@ export default function SelectEvents() {
             // ignore
           }
         }}
-        onSave={handleSaveSimulation}
+        onSave={simulationId && currentStep === 2 ? () => setCurrentStep(3) : handleSaveSimulation}
         isSaved={true}
       />
 
       <main className="events-builder-body">
         {saveError && <p role="alert">{saveError}</p>}
         {libraryError && <p role="alert">שגיאה בטעינת ספריית התוכן: {libraryError}</p>}
-        {currentStep === 2 ? (
+        {isLoadingSimulation ? (
+          <p role="status">טוען את הסימולציה לעריכה...</p>
+        ) : simulationLoadError ? (
+          <p role="alert">טעינת הסימולציה לעריכה נכשלה: {simulationLoadError}</p>
+        ) : currentStep === 2 ? (
           <>
             {/* Single content card matching mockup */}
             <section className="builder-card content-step-card">
@@ -246,14 +440,6 @@ export default function SelectEvents() {
                   >
                     <PlusIcon size={15} />
                     <span>הוספת כל הספרייה ({availableEvents.length})</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-add-from-library"
-                    onClick={() => setIsLibraryOpen(true)}
-                  >
-                    <PlusIcon size={15} />
-                    <span>הוספה מהספרייה</span>
                   </button>
                 </div>
               </div>
@@ -306,46 +492,25 @@ export default function SelectEvents() {
 
               <div className="builder-card-divider" />
 
-              {selectedEvents.length === 0 ? (
-                <div className="content-empty-state">
-                  <span className="content-empty-icon">
-                    <LayersIcon size={22} />
-                  </span>
-                  <h4>עדיין לא נוסף תוכן</h4>
-                  <p>
-                    הוסיפו דיווחים מהספרייה התוכן, אפשר לבחור בכמה דקות, והלחצים
-                    <br />
-                    משמאלם לכל פריט.
-                  </p>
-                </div>
-              ) : (
-                <div className="selected-scroll-list content-selected-list">
-                  {selectedEvents.map((evt, idx) => (
-                    <div key={evt.id} className="selected-item-row">
-                      <span className="selected-seq">{idx + 1}</span>
-                      <div className="selected-text">
-                        <h5 className="selected-text-title">{evt.title}</h5>
-                        <div className="selected-text-sub">
-                          <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
-                          <span>•</span>
-                          <span>דקה {evt.minute}</span>
-                          <span>•</span>
-                          <span>דחיפות: {getUrgency(evt.threatLevel).label}</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-remove-item"
-                        onClick={() => handleRemoveSelected(evt.id)}
-                        title="הסר אירוע מהסימולציה"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SimulationTimeline
+                events={selectedEvents}
+                duration={simDuration}
+                activeEventId={activeTimelineEventId}
+                onSelectEvent={handleTimelineEventClick}
+                onAddAtMinute={handleEmptyTimelineClick}
+              />
             </section>
+            {selectionError && <p className="builder-error-msg" role="alert">{selectionError}</p>}
+            <AiReportReview
+              manualEvents={selectedEvents}
+              duration={simDuration}
+              difficulty={simData.difficulty}
+              activeEventId={activeTimelineEventId}
+              onUpdate={handleUpdateSelectedEvent}
+              onRemove={handleRemoveSelected}
+              onLibrary={() => setIsLibraryOpen(true)}
+              onReorder={handleReorderSelectedEvents}
+            />
 
             {/* Bottom Bar for Step 2 */}
             <div className="builder-bottom-bar">
@@ -419,20 +584,15 @@ export default function SelectEvents() {
                   רשימת אירועי התרחיש ({selectedEvents.length}):
                 </h4>
                 <div className="selected-scroll-list">
-                  {selectedEvents.map((evt, idx) => (
-                    <div key={evt.id} className="selected-item-row">
-                      <span className="selected-seq">{idx + 1}</span>
-                      <div className="selected-text">
-                        <h5 className="selected-text-title">{evt.title}</h5>
-                        <div className="selected-text-sub">
-                          <span>קטגוריה: {evt.categoryName ?? evt.category}{evt.subCategory ? ` · ${evt.subCategory}` : ''}</span>
-                          <span>•</span>
-                          <span>דקה {evt.minute}</span>
-                          <span>•</span>
-                          <span>דחיפות: {getUrgency(evt.threatLevel).label}</span>
-                        </div>
-                      </div>
-                    </div>
+                  {selectedEvents.map((event, index) => (
+                    <SelectedEventRow
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      duration={simDuration}
+                      isActive={activeTimelineEventId === event.id}
+                      onMinuteChange={handleMinuteChange}
+                    />
                   ))}
                 </div>
               </div>
@@ -465,7 +625,10 @@ export default function SelectEvents() {
 
       <ContentLibraryModal
         isOpen={isLibraryOpen}
-        onClose={() => setIsLibraryOpen(false)}
+        onClose={() => {
+          setIsLibraryOpen(false);
+          setPendingTimelineMinute(null);
+        }}
         categories={categories}
         availableEvents={availableEvents}
         selectedIds={selectedIds}
@@ -474,14 +637,22 @@ export default function SelectEvents() {
         isLoading={isLoadingLibrary}
         error={libraryError}
         totalCount={availableEvents.length}
+        selectionMinute={pendingTimelineMinute}
       />
 
       {/* Success Modal */}
       {isSavedSuccess && (
-        <SimulationSavedModal title={simData.title} difficulty={simData.difficulty}
-          eventCount={selectedEvents.length} systemName={SYSTEM_INFO[sys].name}
+        <SimulationSavedModal
+          title={simData.title}
+          difficulty={simData.difficulty}
+          eventCount={selectedEvents.length}
+          systemName={SYSTEM_INFO[simulationId ? editSystem : sys].name}
+          successTitle={simulationId ? 'הסימולציה עודכנה בהצלחה' : 'הסימולציה נשמרה בהצלחה'}
+          successMessage={`התרחיש המבצעי מוכן להפעלה במערכת ${SYSTEM_INFO[simulationId ? editSystem : sys].name}`}
+          createAnotherLabel={simulationId ? 'עריכת סימולציה נוספת' : 'יצירת סימולציה נוספת'}
           onDashboard={() => navigate('/')}
-          onCreateAnother={() => { setIsSavedSuccess(false); navigate('/simulations/new'); }} />
+          onCreateAnother={() => { setIsSavedSuccess(false); navigate('/simulations/new'); }}
+        />
       )}
     </div>
   );
