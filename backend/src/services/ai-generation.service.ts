@@ -127,38 +127,52 @@ export function convertReportCsv(csv: string, expectedCount: number, lengthSecon
   } catch {
     throw new ApiError('The AI CSV is malformed or is missing required report columns.', 502);
   }
-  if (rows.length !== expectedCount || rows.length < 1 || rows.length > 100) {
-    throw new ApiError('The AI CSV report count does not match the requested count.', 502);
+  if (rows.length > expectedCount || rows.length > 100) {
+    throw new ApiError('The AI CSV report count exceeds the requested count.', 502);
   }
-  return rows.map((row, index) => {
-    const payload: Record<string, unknown> = { reality_id: 1 };
-    for (const field of Object.keys(reportFields)) {
-      const cell = row[field];
-      if (field === 'is_official') {
-        if (!/^(true|false)$/i.test(cell)) throw new ApiError(`Invalid CSV boolean at row ${index + 1}.`, 502);
-        payload[field] = cell.toLowerCase() === 'true';
-      } else if (numericFields.has(field)) {
-        const number = cell.trim() === '' ? null : Number(cell);
-        if (number !== null && !Number.isFinite(number)) throw new ApiError(`Invalid CSV number at row ${index + 1}: ${field}.`, 502);
-        payload[field] = number;
-      } else {
-        payload[field] = cell.trim() === '' ? null : cell;
-      }
-    }
-    // `matches` is an obsolete upstream column, not a report kind or a DB field.
-    const offset = row.dispatch_offset_s.trim() === '' ? NaN : Number(row.dispatch_offset_s);
-    const report = {
-      client_id: randomUUID(), template_id: null, dispatch_offset_s: offset,
-      category_name: 'דיווח AI', payload,
-    };
+  const reports: ReturnType<typeof convertReportRow>[] = [];
+  const warnings: string[] = [];
+  for (const [index, row] of rows.entries()) {
     try {
-      const validated = validateAiReport(report, lengthSeconds);
-      const normalizedPayload: Record<string, unknown> = { ...validated.payload, reality_id: 1 };
-      return { ...validated, payload: normalizedPayload, kind: 'unclassified' as const, origin: 'ai' as const };
+      reports.push(convertReportRow(row, lengthSeconds));
     } catch (error) {
-      throw new ApiError(`Invalid AI CSV row ${index + 1}: ${error instanceof Error ? error.message : 'Invalid report.'}`, 502);
+      if (!(error instanceof ApiError)) throw error;
+      warnings.push(`Skipped invalid AI CSV row ${index + 1}: ${error.message}`);
     }
-  }).sort((a, b) => a.dispatch_offset_s - b.dispatch_offset_s);
+  }
+  if (reports.length === 0) {
+    throw new ApiError('The AI generation returned no valid reports.', 502);
+  }
+  if (reports.length < expectedCount) {
+    warnings.unshift(`נוצרו ${reports.length} דיווחים תקינים מתוך ${expectedCount} דיווחים שהתבקשו. דיווחים לא תקינים לא יובאו.`);
+  }
+  return { reports: reports.sort((a, b) => a.dispatch_offset_s - b.dispatch_offset_s), warnings };
+}
+
+function convertReportRow(row: Record<string, string>, lengthSeconds: number) {
+  const payload: Record<string, unknown> = { reality_id: 1 };
+  for (const field of Object.keys(reportFields)) {
+    const cell = row[field];
+    if (field === 'is_official') {
+      if (!/^(true|false)$/i.test(cell)) throw new ApiError('Invalid CSV boolean.', 502);
+      payload[field] = cell.toLowerCase() === 'true';
+    } else if (numericFields.has(field)) {
+      const number = cell.trim() === '' ? null : Number(cell);
+      if (number !== null && !Number.isFinite(number)) throw new ApiError(`Invalid CSV number: ${field}.`, 502);
+      payload[field] = number;
+    } else {
+      payload[field] = cell.trim() === '' ? null : cell;
+    }
+  }
+  // `matches` is an obsolete upstream column, not a report kind or a DB field.
+  const offset = row.dispatch_offset_s.trim() === '' ? NaN : Number(row.dispatch_offset_s);
+  const report = {
+    client_id: randomUUID(), template_id: null, dispatch_offset_s: offset,
+    category_name: 'דיווח AI', payload,
+  };
+  const validated = validateAiReport(report, lengthSeconds);
+  const normalizedPayload: Record<string, unknown> = { ...validated.payload, reality_id: 1 };
+  return { ...validated, payload: normalizedPayload, kind: 'unclassified' as const, origin: 'ai' as const };
 }
 
 export async function getGeneration(runId: string) {
@@ -176,23 +190,7 @@ export async function getGeneration(runId: string) {
   const warnings = Array.isArray(check.warnings) ? check.warnings.filter((item): item is string => typeof item === 'string') : [];
   if (result.ok !== true || check.passed !== true) {
     const failures = Array.isArray(check.hard_failures) ? check.hard_failures.filter((item): item is string => typeof item === 'string') : [];
-    const summary = object(result.summary ?? {});
-    const requested = object(response.request);
-    const requestedScenario = object(requested.scenario);
-    const requestedCount = requested.n ?? requestedScenario.report_count;
-    const fullyRepaired = result.ok === false && check.passed === false
-      && Array.isArray(check.hard_failures) && check.hard_failures.length === 1
-      && failures[0] === 'valid first call >= 90%'
-      && summary.rows_schema_failed === 0
-      && typeof requestedCount === 'number' && Number.isInteger(requestedCount) && requestedCount >= 1 && requestedCount <= 100
-      && summary.report_count === requestedCount && summary.rows_written === requestedCount
-      && typeof summary.rows_valid_first_call === 'number' && Number.isInteger(summary.rows_valid_first_call) && summary.rows_valid_first_call >= 0
-      && typeof summary.rows_repaired === 'number' && Number.isInteger(summary.rows_repaired) && summary.rows_repaired > 0
-      && summary.rows_valid_first_call + summary.rows_repaired === requestedCount;
-    if (!fullyRepaired) {
-      return { runId, status: 'failed', error: `AI quality checks failed. ${failures.join(' ')}`.trim() };
-    }
-    warnings.unshift(`השירות תיקן ${summary.rows_repaired} מתוך ${requestedCount} דיווחים. סף התקינות בניסיון הראשון (90%) לא הושג, אך כל הדיווחים עברו את בדיקת הסכמה הסופית. יש לבדוק את התוכן לפני השמירה.`);
+    warnings.unshift(`AI quality checks failed. Only individually validated reports were imported. ${failures.join(' ')}`.trim());
   }
   const request = object(response.request);
   const scenario = object(request.scenario);
@@ -207,5 +205,6 @@ export async function getGeneration(runId: string) {
   const file = await upstream(`${path}/files/reports.csv`);
   const csv = await file.text();
   if (Buffer.byteLength(csv, 'utf8') > 10 * 1024 * 1024) throw new ApiError('The AI report CSV exceeds 10 MB.', 502);
-  return { runId, status: 'completed', reports: convertReportCsv(csv, count, duration), warnings };
+  const converted = convertReportCsv(csv, count, duration);
+  return { runId, status: 'completed', reports: converted.reports, warnings: [...warnings, ...converted.warnings] };
 }

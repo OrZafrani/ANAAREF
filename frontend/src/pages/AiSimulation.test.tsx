@@ -22,7 +22,7 @@ function renderBuilder(path = '/simulations/ai') {
   );
 }
 
-async function makeReports() {
+async function makeReports(expectedCount = 5) {
   if (!screen.getByLabelText(/שם הסימולציה/).getAttribute('value')) {
     fireEvent.change(screen.getByLabelText(/שם הסימולציה/), { target: { value: 'תרגיל AI מקומי' } });
   }
@@ -37,7 +37,7 @@ async function makeReports() {
   fireEvent.change(screen.getByRole('slider', { name: /קצב הזרמת דיווחים/ }), { target: { value: '0.5' } });
   fireEvent.change(screen.getByRole('slider', { name: /משך הסימולציה/ }), { target: { value: '10' } });
   fireEvent.click(screen.getByRole('button', { name: 'יצירת הסימולציה' }));
-  await screen.findByRole('heading', { name: /דיווחים בסימולציה 5/ });
+  await screen.findByRole('heading', { name: new RegExp(`דיווחים בסימולציה ${expectedCount}`) });
 }
 
 describe('AI simulation frontend flow', () => {
@@ -212,6 +212,25 @@ describe('AI simulation frontend flow', () => {
     expect(within(drawer).getByText('דיווח שנערך')).toBeInTheDocument();
     expect(within(drawer).getByText('T+01:30')).toBeInTheDocument();
     expect(within(drawer).getByText('10')).toBeInTheDocument();
+  });
+
+  it('reviews and saves a single valid report even when five were requested', async () => {
+    vi.mocked(aiSimulationService.generateReports).mockImplementationOnce(async (draft) => ({
+      runId: 'test-run', status: 'completed', reports: makeTestReports(draft).slice(0, 1),
+      warnings: ['AI quality checks failed. valid first call >= 90%', 'Skipped invalid AI CSV row 2'],
+    }));
+    renderBuilder();
+    await makeReports(1);
+    expect(screen.getAllByRole('button', { name: /^הסרת דיווח:/ })).toHaveLength(1);
+    expect(screen.getByText('הדיווחים נוצרו בהצלחה')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'המשך לשמירה' }));
+    expect(screen.getByRole('heading', { name: 'סקירה ושמירה' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'שמירת הסימולציה' }));
+    await screen.findByRole('heading', { name: 'הסימולציה נשמרה בהצלחה' });
+    const post = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST');
+    const saved = JSON.parse(String(post?.[1]?.body)) as CreateAiSimulationInput;
+    expect(saved.reports).toHaveLength(1);
+    expect(saved.length_s).toBe(600);
   });
 
   it('guards both save buttons during a database request and removes the local draft only after success', async () => {
