@@ -5,12 +5,69 @@ import Layout from './layout/Layout';
 import Home from './pages/Home';
 import CreateSimulation from './pages/CreateSimulation';
 import SelectEvents from './pages/SelectEvents';
+import AiReportReview from './components/ai/AiReportReview';
 import { getUrgency } from './lib/urgency';
 
 function CurrentPath() {
   const location = useLocation();
   return <output data-testid="current-path">{location.pathname}</output>;
 }
+
+describe('Manual event details', () => {
+  it('opens the shared AI details drawer and supports minute editing and removal', () => {
+    const onRemove = vi.fn();
+    const onMinuteChange = vi.fn();
+    render(
+      <AiReportReview
+        manualEvents={[{
+          id: 'manual-event-1',
+          title: 'תרגיל חירום',
+          category: 'התרעה',
+          categoryName: 'תפעול',
+          city: 'באר שבע',
+          country: 'ישראל',
+          threatLevel: 70,
+          minute: 4,
+          description: 'זוהתה פעילות חריגה באזור.',
+        }]}
+        duration={30}
+        difficulty="בינוני"
+        activeEventId={null}
+        onUpdate={(id, changes) => onMinuteChange(id, changes.minute)}
+        onRemove={onRemove}
+        onLibrary={vi.fn()}
+        onReorder={vi.fn()}
+      />,
+    );
+
+    const card = document.getElementById('selected-event-manual-event-1')!;
+    expect(card).toHaveTextContent('ללא סיווג');
+    expect(card).toHaveTextContent('T+04:00');
+    expect(card).toHaveTextContent('באר שבע');
+    expect(card).toHaveTextContent('כוחותינו: לא ידוע');
+    expect(card).toHaveTextContent('אויב: לא ידוע');
+    expect(within(card).getByRole('button', { name: 'עריכת דיווח: תרגיל חירום' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'פרטים: תרגיל חירום' }));
+    const detailsDialog = screen.getByRole('dialog', { name: 'תרגיל חירום' });
+    expect(detailsDialog).toBeInTheDocument();
+    expect(within(detailsDialog).getByText('זמן קליטה')).toBeInTheDocument();
+    expect(detailsDialog.querySelector('.ai-offset')).toHaveTextContent('04:00');
+
+    fireEvent.click(within(detailsDialog).getByRole('button', { name: 'עריכה' }));
+    const editor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    expect(within(editor).getByLabelText('תוכן הדיווח')).toHaveValue('זוהתה פעילות חריגה באזור.');
+    fireEvent.change(within(editor).getByLabelText('דקות'), { target: { value: '5' } });
+    fireEvent.click(within(editor).getByRole('button', { name: 'שמירת שינויים' }));
+    expect(onMinuteChange).toHaveBeenCalledWith('manual-event-1', 5);
+    expect(onRemove).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'פרטים: תרגיל חירום' }));
+    fireEvent.click(screen.getByRole('button', { name: 'הסרה מהסימולציה' }));
+    expect(onRemove).toHaveBeenCalledWith('manual-event-1');
+    expect(screen.queryByRole('dialog', { name: 'תרגיל חירום' })).not.toBeInTheDocument();
+  });
+});
 
 describe('Simulation Flow - Mockup Alignment', () => {
   beforeEach(() => {
@@ -295,17 +352,24 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
 
     // Check count and selection state
-    expect(screen.getByText('קטגוריה: תפעול · התראות')).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' })).toHaveValue(2);
     expect(screen.getAllByText('דחיפות: קריטי')).toHaveLength(2);
     const reportCheckbox = screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ });
     expect(reportCheckbox).toBeChecked();
+    const selectedReview = screen.getByRole('region', { name: /דיווחים בסימולציה/ });
+    expect(selectedReview).toHaveClass('ai-builder', 'ai-reports-panel');
+    expect(selectedReview.closest('.content-step-card')).toBeNull();
+    expect(within(selectedReview).getByRole('group', { name: 'סינון לפי סוג דיווח' })).toBeInTheDocument();
     fireEvent.click(reportCheckbox);
     expect(screen.getByRole('checkbox', { name: /הוסף לסימולציה: דיווח מספריית התוכן/ })).not.toBeChecked();
     fireEvent.click(screen.getByText('תוכן הדיווח שנשמר בספרייה'));
     expect(screen.getByRole('checkbox', { name: /הסר מהסימולציה: דיווח מספריית התוכן/ })).toBeChecked();
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' }), { target: { value: '6' } });
-    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' })).toHaveValue(6);
+    const selectedLibraryCard = document.getElementById('selected-event-report-1');
+    expect(selectedLibraryCard).toHaveTextContent('T+02:00');
+    fireEvent.click(within(selectedLibraryCard!).getByRole('button', { name: 'עריכת דיווח: דיווח מספריית התוכן' }));
+    const libraryEditor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    fireEvent.change(within(libraryEditor).getByLabelText('דקות'), { target: { value: '6' } });
+    fireEvent.click(within(libraryEditor).getByRole('button', { name: 'שמירת שינויים' }));
+    expect(selectedLibraryCard).toHaveTextContent('T+06:00');
 
     const timelineTrack = document.querySelector('.event-timeline-track');
     expect(timelineTrack).not.toBeNull();
@@ -319,12 +383,12 @@ describe('Simulation Flow - Mockup Alignment', () => {
     fireEvent.click(screen.getByRole('button', { name: /כל הדיווחים/ }));
     expect(screen.getByText(/דקה בסימולציה: 4/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('תוכן נוסף'));
-    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח כללי' })).toHaveValue(10);
 
     expect(screen.getByText('דיווחים שנבחרו לסימולציה')).toBeInTheDocument();
     expect(screen.getByText('דחיפות: קריטי')).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח מספריית התוכן' })).toHaveValue(6);
-    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור דיווח כללי' })).toHaveValue(10);
+    const selectedGeneralCard = document.getElementById('selected-event-report-2');
+    expect(selectedLibraryCard).toHaveTextContent('T+06:00');
+    expect(selectedGeneralCard).toHaveTextContent('T+10:00');
     const timelineElement = screen.getByRole('list', { name: 'אירועים לפי זמן בסימולציה' });
     const timeline = within(timelineElement);
     const timelineEvents = timeline.getAllByRole('listitem');
@@ -348,10 +412,23 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
     expect(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח מספריית התוכן, דקה 6' })).toHaveAttribute('aria-pressed', 'true');
     expect(timeline.getByRole('button', { name: 'מעבר לאירוע דיווח כללי, דקה 10' })).toHaveAttribute('aria-pressed', 'false');
-    expect(selectedReportRow).toHaveClass('is-active');
-    const otherEventRows = Array.from(document.querySelectorAll('.selected-item-row'))
+    expect(selectedReportRow).toHaveClass('ai-report-active');
+    expect(selectedReportRow).toHaveTextContent('T+06:00');
+    const otherEventRows = Array.from(document.querySelectorAll('.ai-report-card'))
       .filter((row) => row !== selectedReportRow);
-    expect(otherEventRows.every((row) => !row.classList.contains('is-active'))).toBe(true);
+    expect(otherEventRows.every((row) => !row.classList.contains('ai-report-active'))).toBe(true);
+    const secondEventRow = document.getElementById('selected-event-report-2');
+    expect(secondEventRow).not.toBeNull();
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    fireEvent.dragStart(
+      within(selectedReportRow!).getByRole('button', { name: /^הזזת דיווח:/ }),
+      { dataTransfer },
+    );
+    fireEvent.dragOver(secondEventRow!, { dataTransfer });
+    expect(secondEventRow).toHaveClass('ai-report-drop-target');
+    fireEvent.drop(secondEventRow!, { dataTransfer });
+    expect(selectedLibraryCard).toHaveTextContent('T+10:00');
+    expect(selectedGeneralCard).toHaveTextContent('T+06:00');
 
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
     expect(screen.getAllByText('דחיפות: קריטי').length).toBeGreaterThan(0);
@@ -398,10 +475,13 @@ describe('Simulation Flow - Mockup Alignment', () => {
     expect(await screen.findByText(/דיווחים זמינים מספריית התוכן/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /הוספה מהספרייה/i }));
     fireEvent.click(await screen.findByRole('checkbox', { name: /הוסף לסימולציה:/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת דיווח: זיהוי תנועה חשודה בגדר המערכת' }));
+    const reportEditor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
     fireEvent.change(
-      screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור זיהוי תנועה חשודה בגדר המערכת' }),
+      within(reportEditor).getByLabelText('דקות'),
       { target: { value: '7' } },
     );
+    fireEvent.click(within(reportEditor).getByRole('button', { name: 'שמירת שינויים' }));
     fireEvent.click(screen.getAllByRole('button', { name: /סקירה ושמירה/i })[1]);
     fireEvent.click(screen.getByRole('button', { name: /שמירה ואישור/i }));
 
@@ -540,8 +620,11 @@ describe('Simulation Flow - Mockup Alignment', () => {
 
     expect(await screen.findByText('בונה ידני · עריכת סימולציה')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'מטח פתיחה' })).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור זיהוי רחפן' })).toHaveValue(8);
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'דקת סימולציה עבור זיהוי רחפן' }), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת דיווח: זיהוי רחפן' }));
+    const reportEditor = screen.getByRole('dialog', { name: 'עריכת דיווח בסימולציה' });
+    expect(within(reportEditor).getByLabelText('דקות')).toHaveValue(8);
+    fireEvent.change(within(reportEditor).getByLabelText('דקות'), { target: { value: '9' } });
+    fireEvent.click(within(reportEditor).getByRole('button', { name: 'שמירת שינויים' }));
     fireEvent.click(screen.getByRole('button', { name: 'המשך לסקירה' }));
     expect(screen.getByRole('heading', { name: 'רשימת אירועי התרחיש (1):' })).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(

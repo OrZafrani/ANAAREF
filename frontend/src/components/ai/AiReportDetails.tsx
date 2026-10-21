@@ -16,7 +16,9 @@ interface Props {
 const unknown = 'לא ידוע';
 const timestamp = (value: string | null) => value ? `${new Date(value).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')} UTC` : unknown;
 
-export default function AiReportDetails({ report, busy, onClose, onEdit, onRemove }: Props) {
+export default function AiReportDetails({
+  report, busy, onClose, onEdit, onRemove,
+}: Props) {
   const dialogRef = useRef<HTMLElement>(null);
   const payload = report.payload;
   const urgency = getUrgency(payload.threat_level);
@@ -92,7 +94,7 @@ export default function AiReportDetails({ report, busy, onClose, onEdit, onRemov
           <section aria-labelledby="ai-details-location-heading">
             <h3 id="ai-details-location-heading" className="drawer-sec-title">מיקום</h3>
             <div className="ai-details-location">
-              <strong>{payload.city || 'מיקום לא ידוע'}</strong>
+              <strong>{[payload.city, payload.country].filter(Boolean).join(' · ') || 'מיקום לא ידוע'}</strong>
               <span>{payload.lat !== null && payload.long !== null ? `${payload.lat}, ${payload.long}` : 'קואורדינטות לא ידועות'}</span>
               <small>דיוק המיקום לא נמסר בדיווח.</small>
             </div>
@@ -103,7 +105,8 @@ export default function AiReportDetails({ report, busy, onClose, onEdit, onRemov
           </details>
         </div>
         <footer className="drawer-foot">
-          <button type="button" className="ai-button ai-button-primary" disabled={busy} onClick={onEdit}><PencilIcon size={14} />עריכה</button>
+          <button type="button" className="ai-button ai-button-primary" disabled={busy}
+            onClick={onEdit}><PencilIcon size={14} />עריכה</button>
           <button type="button" className="ai-button" disabled={busy} onClick={onRemove}>הסרה מהסימולציה</button>
           <button type="button" className="ai-report-text-action" onClick={onClose}>סגירה</button>
         </footer>

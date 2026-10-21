@@ -4,17 +4,18 @@ import BuilderHeader from '../components/BuilderHeader';
 import ContentLibraryModal from '../components/ContentLibraryModal';
 import SimulationTimeline from '../components/SimulationTimeline';
 import SimulationSavedModal from '../components/SimulationSavedModal';
+import AiReportReview from '../components/ai/AiReportReview';
 import { SimulationFormData, SimulationEvent } from '../types/simulation';
 import { createSimulation, getSimulation, updateSimulation } from '../lib/api';
 import { getCategoryTree, getTemplates, type CategoryNode, type LibraryTemplate } from '../lib/libraryApi';
 import { SYSTEM_INFO, useAppSettings } from '../lib/appSettings';
+import './AiSimulation.css';
 import { getUrgency } from '../lib/urgency';
 import {
   CheckIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   ContentLibraryIcon,
-  LayersIcon,
   PlusIcon,
 } from '../components/Icons';
 import './SelectEvents.css';
@@ -319,6 +320,28 @@ export default function SelectEvents() {
     setSelectedEvents(selectedEvents.map((event) => event.id === id ? { ...event, minute } : event));
   };
 
+  const handleUpdateSelectedEvent = (
+    id: string,
+    changes: Pick<SimulationEvent, 'title' | 'description' | 'city' | 'threatLevel' | 'minute'>,
+  ) => {
+    if (!Number.isInteger(changes.minute) || changes.minute < 1 || changes.minute > simDuration) return;
+    setSelectedEvents((events) => events.map((event) => event.id === id ? { ...event, ...changes } : event));
+  };
+
+  const handleReorderSelectedEvents = (sourceId: string, targetId: string) => {
+    setSelectedEvents((currentEvents) => {
+      const ordered = [...currentEvents].sort((first, second) => first.minute - second.minute);
+      const sourceIndex = ordered.findIndex((event) => event.id === sourceId);
+      const targetIndex = ordered.findIndex((event) => event.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return currentEvents;
+      const timeSlots = ordered.map((event) => event.minute);
+      const [moved] = ordered.splice(sourceIndex, 1);
+      ordered.splice(targetIndex, 0, moved);
+      const newTimes = new Map(ordered.map((event, index) => [event.id, timeSlots[index]]));
+      return currentEvents.map((event) => ({ ...event, minute: newTimes.get(event.id) ?? event.minute }));
+    });
+  };
+
   const handleTimelineEventClick = (id: string) => {
     setActiveTimelineEventId(id);
     document.getElementById(`selected-event-${id}`)?.scrollIntoView?.({
@@ -418,14 +441,6 @@ export default function SelectEvents() {
                     <PlusIcon size={15} />
                     <span>הוספת כל הספרייה ({availableEvents.length})</span>
                   </button>
-                  <button
-                    type="button"
-                    className="btn-add-from-library"
-                    onClick={() => setIsLibraryOpen(true)}
-                  >
-                    <PlusIcon size={15} />
-                    <span>הוספה מהספרייה</span>
-                  </button>
                 </div>
               </div>
 
@@ -484,38 +499,18 @@ export default function SelectEvents() {
                 onSelectEvent={handleTimelineEventClick}
                 onAddAtMinute={handleEmptyTimelineClick}
               />
-
-              {selectedEvents.length === 0 ? (
-                <div className="content-empty-state">
-                  <span className="content-empty-icon">
-                    <LayersIcon size={22} />
-                  </span>
-                  <h4>עדיין לא נוסף תוכן</h4>
-                  <p>
-                    הוסיפו דיווחים מהספרייה התוכן, אפשר לבחור בכמה דקות, והלחצים
-                    <br />
-                    משמאלם לכל פריט.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {selectionError && <p className="builder-error-msg" role="alert">{selectionError}</p>}
-                  <div className="selected-scroll-list content-selected-list">
-                    {selectedEvents.map((event, index) => (
-                      <SelectedEventRow
-                        key={event.id}
-                        event={event}
-                        index={index}
-                        duration={simDuration}
-                        isActive={activeTimelineEventId === event.id}
-                        onMinuteChange={handleMinuteChange}
-                        onRemove={handleRemoveSelected}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
             </section>
+            {selectionError && <p className="builder-error-msg" role="alert">{selectionError}</p>}
+            <AiReportReview
+              manualEvents={selectedEvents}
+              duration={simDuration}
+              difficulty={simData.difficulty}
+              activeEventId={activeTimelineEventId}
+              onUpdate={handleUpdateSelectedEvent}
+              onRemove={handleRemoveSelected}
+              onLibrary={() => setIsLibraryOpen(true)}
+              onReorder={handleReorderSelectedEvents}
+            />
 
             {/* Bottom Bar for Step 2 */}
             <div className="builder-bottom-bar">
